@@ -6,28 +6,18 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>590</width>
-    <height>398</height>
+    <width>450</width>
+    <height>550</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <widget class="QTableWidget" name="tableWidget">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>20</y>
-     <width>401</width>
-     <height>251</height>
-    </rect>
-   </property>
-  </widget>
   <widget class="QPushButton" name="DRbtn">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>350</y>
+     <x>20</x>
+     <y>490</y>
      <width>80</width>
      <height>23</height>
     </rect>
@@ -39,8 +29,8 @@
   <widget class="QPushButton" name="MSbtn">
    <property name="geometry">
     <rect>
-     <x>160</x>
-     <y>350</y>
+     <x>150</x>
+     <y>490</y>
      <width>80</width>
      <height>23</height>
     </rect>
@@ -52,8 +42,8 @@
   <widget class="QPushButton" name="SSbtn">
    <property name="geometry">
     <rect>
-     <x>290</x>
-     <y>350</y>
+     <x>280</x>
+     <y>490</y>
      <width>80</width>
      <height>23</height>
     </rect>
@@ -65,8 +55,8 @@
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>290</y>
+     <x>20</x>
+     <y>430</y>
      <width>131</width>
      <height>31</height>
     </rect>
@@ -83,9 +73,9 @@
   <widget class="QLineEdit" name="lineEdit">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>290</y>
-     <width>381</width>
+     <x>170</x>
+     <y>430</y>
+     <width>261</width>
      <height>31</height>
     </rect>
    </property>
@@ -94,6 +84,67 @@
      <pointsize>12</pointsize>
     </font>
    </property>
+  </widget>
+  <widget class="QPushButton" name="homeBtn">
+   <property name="geometry">
+    <rect>
+     <x>350</x>
+     <y>10</y>
+     <width>80</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Home</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="nameLabel">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>20</y>
+     <width>231</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>20</pointsize>
+    </font>
+   </property>
+   <property name="text">
+    <string>store name</string>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="tableWidget">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>70</y>
+     <width>421</width>
+     <height>341</height>
+    </rect>
+   </property>
+   <column>
+    <property name="text">
+     <string>orderNo</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>orderStatus</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Total count</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Robot Status</string>
+    </property>
+   </column>
   </widget>
  </widget>
  <resources/>
