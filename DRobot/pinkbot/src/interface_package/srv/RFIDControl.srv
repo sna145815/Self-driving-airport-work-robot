@@ -1,0 +1,4 @@
+#RFIDControl.srv
+---
+int64 id
+bool success
