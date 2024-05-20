@@ -1,11 +1,7 @@
 import rclpy as rp
 
 from rclpy.node import Node
-
-
-
-from test_package_msg.srv import Tcp
-
+from interface_package.srv import Tcp
 class TcpNode(Node):
     def __init__(self):
         super().__init__('tcp_node')
@@ -18,7 +14,7 @@ class TcpNode(Node):
         self.data = None
 
     def send_request(self, string):
-        self.req.kiosk_location = string
+        self.req.uid = string
         self.future = self.tcp_client.call_async(self.req)
         self.future.add_done_callback(self.handle_response)
 

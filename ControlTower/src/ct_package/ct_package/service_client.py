@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from mini_bot_msg.srv import MotorControl,LCDControl,RFIDControl 
+from interface_package.srv import MotorControl,LCDControl,RFIDControl 
 from time import sleep
 from std_msgs.msg import String
 
