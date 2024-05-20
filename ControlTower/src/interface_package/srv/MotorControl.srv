@@ -1,0 +1,5 @@
+# MotorControl.srv
+
+string command
+---
+bool success
