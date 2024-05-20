@@ -1,3 +1,12 @@
+#ControlTower ws
+ControlTower/build/
+ControlTower/install/
+ControlTower/log/
+
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -160,10 +169,6 @@ cython_debug/
 #.idea/
 
 
-#ControlTower ws
-ControlTower/build/
-ControlTower/install/
-ControlTower/log/
 
 
 
