@@ -50,7 +50,7 @@ class KioskServer():
                                 print(f"No client found with IP {target_ip}")
                                 conn.sendall(f"No client found with IP {target_ip}".encode())
                             data_list = data.split(',')
-                            self.node.send_request(data_list[1]) #-->print 대신 send_request
+                            self.node.send_request(data_list[0]) #-->print 대신 send_request
                         elif cmd == 'GD':
                             print("출발시간요청 : ")
                             print(data)

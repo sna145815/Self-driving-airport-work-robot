@@ -22,7 +22,7 @@ setup(
         'console_scripts': [
             'control_tower = ct_package.control_tower:main',
             'tcp_node = ct_package.TcpNode:main',
-            'uid_node = ct_package.UIdNode:main',
+            'uid_node = ct_package.UidNode:main',
         ],
     },
 )
