@@ -3,10 +3,11 @@ import threading
 
 
 class StoreServer:
-    def __init__(self, host, port, clients):
+    def __init__(self, host, port, clients,db_manager):
         self.host = host
         self.port = port
         self.clients = clients  # 전달된 clients 리스트 사용
+        self.db_manager = db_manager
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def handle_client(self, conn, addr):
