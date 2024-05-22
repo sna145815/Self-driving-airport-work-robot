@@ -62,7 +62,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Kimbab Heaven</string>
+    <string>starbucks</string>
    </property>
   </widget>
   <widget class="QPushButton" name="storeBtn3">
@@ -75,7 +75,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Sushi</string>
+    <string>kimbab heaven</string>
    </property>
   </widget>
  </widget>
