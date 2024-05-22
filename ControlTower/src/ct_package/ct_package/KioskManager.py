@@ -30,11 +30,13 @@ class KioskServer:
                             self.order_request(data, conn)
                         elif cmd == 'GD':
                             d_time = self.get_departure_time(data)
-                            self.client_send(d_time, conn)
+                            msg = "GD,"+d_time
+                            self.client_send(msg, conn)
                         elif cmd == 'OI':
                             orders = self.order_select(data)
                             if orders:
                                 msg = '/'.join([f"{order[0]},{order[1]}" for order in orders])
+                                msg = "OI,"+msg
                                 self.client_send(msg, conn)
                             else:
                                 self.client_send("No orders found", conn)

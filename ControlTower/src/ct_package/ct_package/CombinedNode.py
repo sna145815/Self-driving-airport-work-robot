@@ -10,11 +10,12 @@ from db_manager import DBManager
 from KioskManager import KioskServer
 from StoreManager import StoreServer
 
-HOST = '192.168.0.17'
+HOST = '192.168.0.30'
 STORE_PORT = 9022
 KIOSK_PORT = 9021
 store_clients = []
 kiosk_clients = []
+
 class CombinedServerNode(Node):
     def __init__(self):
         super().__init__('combined_server_node')

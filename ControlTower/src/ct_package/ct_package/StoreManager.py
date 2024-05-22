@@ -24,9 +24,16 @@ class StoreServer:
                         data_list = data.split(',')
                         print(data_list)
                         if cmd == 'DR':
-                            #미구현
+                            #배차 로직 후 로봇 배차
                             print(f"{data_list[0]} 매장에서 / {data_list[1]} 주문 배차 요청!")
-                            conn.sendall("배차 해드릴게요~!".encode())
+                            self.robot_call()
+                            ##DB 주문 상태 변경
+                            self.order_status(data,1)
+                            ## 배차가 완료 되면 send
+                            msg="DS,1,R-1"
+                            conn.sendall(msg.encode())
+                        elif cmd == "CS":
+                            self.order_status(data,0)
                         elif cmd == 'SS':
                             self.store_status(data_list[0],data_list[1])
                         elif cmd == 'MS':
@@ -64,6 +71,24 @@ class StoreServer:
         self.server_socket.close()
         print("스토어 서버 소켓 닫힘")
 
+    def order_status(self,param,status):
+        if status == 0:
+            query = """
+                        UPDATE Order
+                        SET OrderStatus='조리중'
+                        WHERE OrderNumber=%s;
+                        """
+        elif status == 1:
+            query = """
+                        UPDATE Order
+                        SET OrderStatus='매장이동'
+                        WHERE OrderNumber=%s;
+                        """
+
+        params = (param,)
+        self.db_manager.execute_query(query, params)
+
+
     def store_status(self, s_id, status):
         try:
             if status == '1':
@@ -90,6 +115,10 @@ class StoreServer:
             print(f"상점 상태 업데이트 중 오류 발생: {e}")
             return None
         
+    def robot_call(self):
+        
+        print("R-1로봇 배차 완료")
+
 
     def menu_status(self, m_id, status):
         try:
