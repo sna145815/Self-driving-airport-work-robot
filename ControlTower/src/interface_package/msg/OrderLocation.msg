@@ -1,0 +1,2 @@
+string order_id
+string location
