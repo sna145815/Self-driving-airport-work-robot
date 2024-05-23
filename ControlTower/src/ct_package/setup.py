@@ -21,9 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'control_tower = ct_package.control_tower:main',
-            'tcp_node = ct_package.TcpNode:main',
-            'uid_node = ct_package.UidNode:main',
             'service_client = ct_package.service_client:main',
+            'robot_control = ct_package.robot_control:main',
         ],
     },
 )
