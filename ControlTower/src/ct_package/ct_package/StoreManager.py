@@ -3,7 +3,7 @@ import threading
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from db_manager import DBManager
+from ct_package.db_manager import DBManager
 
 
 HOST = '192.168.0.30'

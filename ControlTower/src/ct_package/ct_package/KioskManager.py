@@ -5,7 +5,8 @@ import sys
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from db_manager import DBManager
+from ct_package.db_manager import DBManager
+
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #from TcpNode import *
