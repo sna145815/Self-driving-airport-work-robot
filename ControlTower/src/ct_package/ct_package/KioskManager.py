@@ -2,18 +2,26 @@ import socket
 import threading
 import os
 import sys
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from db_manager import DBManager
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #from TcpNode import *
 
-class KioskServer:
-    def __init__(self, host, port, s_clients,kiosk_clients, db_manager):
+HOST = '192.168.0.30'
+KIOSK_PORT = 9021
+
+class KioskManager(Node):
+    def __init__(self, host, port,dbmanager):
+        super().__init__('kiosk_manager_node')
         self.host = host
         self.port = port
-        self.clients = kiosk_clients
-        self.s_clients = s_clients  # 전달된 clients 리스트 사용
+        self.client_list = [] 
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.db_manager = db_manager
+        self.db_manager = dbmanager
+        self.robotcall_publisher = self.create_publisher(String, 'orderCall', 10)
 
     def handle_client(self, conn, addr):
         print(f"{addr}에서 연결됨")
@@ -40,14 +48,11 @@ class KioskServer:
                                 self.client_send(msg, conn)
                             else:
                                 self.client_send("No orders found", conn)
-                            # msg = self.order_select(data)
-                            # msg = '/'.join([f"{order[0]},{order[1]}" for order in msg])
-                            # self.client_send(msg, conn)
                     except ConnectionResetError:
                         break
         finally:
             print(f"{addr} 연결 해제")
-            if conn in self.clients:
+            if conn in self.client_list:
                 self.clients.remove(conn)
             conn.close()
 
@@ -59,7 +64,7 @@ class KioskServer:
 
             while True:
                 conn, addr = self.server_socket.accept()
-                self.clients.append(conn)
+                self.client_list.append(conn)
                 client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
                 client_thread.start()
                 print(f"{addr}에 대한 스레드 시작됨")
@@ -70,7 +75,7 @@ class KioskServer:
 
     def close_server(self):
         print("키오스크 서버 소켓 닫는 중")
-        for conn in self.clients:
+        for conn in self.client_list:
             conn.close()
         self.server_socket.close()
         print("키오스크 서버 소켓 닫힘")
@@ -99,6 +104,7 @@ class KioskServer:
     def order_request(self, data, conn):
         try:
             data_list = data.split(',')
+
             order_number_query = """
                 SELECT ordernumber + 1 AS newOrdernumber 
                 FROM `Order` 
@@ -110,12 +116,12 @@ class KioskServer:
             new_order_number = result[0][0] if result else 1  # 첫 번째 주문의 경우
 
             insert_order_query = """
-                INSERT INTO `Order` (OrderNumber, OrderStatus, UID, Kiosk_ID) 
-                VALUES (%s, '대기중', %s, %s);
+                INSERT INTO `Order` (OrderNumber, OrderStatus, UID, Kiosk_ID,Store_ID) 
+                VALUES (%s, '대기중', %s, %s,%s);
             """
-            self.db_manager.execute_query(insert_order_query, (new_order_number, data_list[0], data_list[1]))
+            self.db_manager.execute_query(insert_order_query, (new_order_number, data_list[0], data_list[1],data_list[2]))
 
-            menu_info = data_list[2:-1]  # 메뉴 정보 리스트
+            menu_info = data_list[3:-1]  # 메뉴 정보 리스트
             cnt = int(data_list[-1])
 
             for i in range(cnt):
@@ -130,27 +136,19 @@ class KioskServer:
                 params = (new_order_number, menu_id, menu_cnt)
                 self.db_manager.execute_query(insert_menu_query, params)
 
-            menu_name = data_list[2].split('/')[0]
+            menu_name = data_list[3].split('/')[0]
+
             query = """
                 SELECT A.Store_ip 
                 FROM Store A
                 JOIN Menu B ON A.ID = B.Store_ID 
                 WHERE B.Name = %s;
             """
-            result = self.db_manager.fetch_query(query, (menu_name,))
-
-            if result:
-                store_ip = result[0][0]
-                target_client = next((client for client in self.s_clients if client.getpeername()[0] == store_ip), None)
-
-                if target_client:
-                    menus = data_list[2:2 + cnt]
-                    msg = f"OS,{new_order_number},{cnt},{','.join(menus)}"
-                    target_client.sendall(msg.encode())
-                else:
-                    conn.sendall(f"{store_ip} IP를 가진 클라이언트를 찾을 수 없음".encode())
-            else:
-                conn.sendall(f"해당 메뉴 이름에 대한 매장 IP를 찾을 수 없음: {menu_name}".encode())
+            store_ip = self.db_manager.fetch_query(query, (menu_name,))
+            ## Store 쪽으로 토픽 던지기 
+            msg = String()
+            msg.data = str(store_ip[0][0]) + "/" + str(new_order_number)
+            self.robotcall_publisher.publish(msg)
         except Exception as e:
             print(f"주문 요청 처리 중 오류: {e}")
             conn.sendall(f"주문 요청 처리 중 오류: {e}".encode())
@@ -179,8 +177,33 @@ class KioskServer:
             return None
 
     def client_send(self, msg, conn):
-        target_client = next((client for client in self.clients if client.getpeername()[0] == conn.getpeername()[0]), None)
+        target_client = next((client for client in self.client_list if client.getpeername()[0] == conn.getpeername()[0]), None)
         if target_client:
             target_client.sendall(msg.encode())
             print(target_client.getpeername()[0])
             print("전송"*10)
+
+def main(args=None):
+    db_manager = DBManager(HOST, 'potato', '1234', 'prj')
+    connection = db_manager.create_connection("KioskServer")
+
+    if not connection:
+        print("Failed to connect to the database.")
+        return
+    
+    rclpy.init(args=args)
+
+    # KioskManager 노드 생성
+    kiosk_manager = KioskManager(HOST, KIOSK_PORT,db_manager)
+    # 서버 시작
+    kiosk_manager.start_server()
+
+    rclpy.spin(kiosk_manager)
+
+    # 노드 종료
+    kiosk_manager.close_server()
+    kiosk_manager.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

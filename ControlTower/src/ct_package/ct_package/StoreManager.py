@@ -1,15 +1,68 @@
 import socket
 import threading
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from db_manager import DBManager
 
-class StoreServer:
-    def __init__(self, host, port, clients,k_clients, db_manager):
+
+HOST = '192.168.0.30'
+STORE_PORT = 9023
+
+class StoreManager(Node):
+    def __init__(self, host, port,db_manager):
+        super().__init__('store_server_node')
+
         self.host = host
         self.port = port
-        self.clients = clients  # 전달된 clients 리스트 사용
-        self.k_clients = k_clients
+        self.client_list = []
         self.db_manager = db_manager
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        #로봇 콜 PUB발행
+        self.robotcall_publisher = self.create_publisher(String, 'robotCall', 10)
+
+        #주문요청 SUB
+        self.order_call_subscriber = self.create_subscription(String, 'orderCall', self.order_call_callback, 10)
+
+
+    def order_call_callback(self, msg):
+        # 받은 메시지를 '/'를 기준으로 분할하여 파싱
+        try:
+            data_list = msg.data.split('/')
+            store_ip = data_list[0]
+            order_number = data_list[1]
+
+            query = """
+                SELECT A.OrderNumber, 
+                    (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
+                    B.Menu_cnt 
+                FROM `Order` A 
+                JOIN OM_list B 
+                ON A.OrderNumber = B.OrderNumber 
+                WHERE A.OrderNumber = %s;
+            """
+            params = (order_number,)
+            result = self.db_manager.fetch_query(query, params)
+
+            if result:
+                order_number = result[0][0]
+                menus = [f"{row[1]}/{row[2]}" for row in result]
+                cnt = len(menus)
+                msg = f"OS,{order_number},{cnt},{','.join(menus)}"
+                store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
+                print(msg)
+                if store_ip:
+                    store_ip.sendall(msg.encode())
+                else:
+                    print("매장 접속 안됨")
+            else:
+                print("DB결과 없음")
+        except Exception as e:
+                print(f"Error fetching order details: {e}")
+                return None
+
+    
     def handle_client(self, conn, addr):
         print(f"{addr} 연결됨")
         try:
@@ -24,14 +77,8 @@ class StoreServer:
                         data_list = data.split(',')
                         print(data_list)
                         if cmd == 'DR':
-                            #배차 로직 후 로봇 배차
                             print(f"{data_list[0]} 매장에서 / {data_list[1]} 주문 배차 요청!")
-                            self.robot_call()
-                            ##DB 주문 상태 변경
-                            self.order_status(data,1)
-                            ## 배차가 완료 되면 send
-                            msg="DS,1,R-1"
-                            conn.sendall(msg.encode())
+                            self.robot_call(data_list[1])
                         elif cmd == "CS":
                             self.order_status(data,0)
                         elif cmd == 'SS':
@@ -43,8 +90,8 @@ class StoreServer:
                         break
         finally:
             print(f"{addr} 연결 해제")
-            if conn in self.clients:
-                self.clients.remove(conn)
+            if conn in self.client_list:
+                self.client_list.remove(conn)
             conn.close()
 
     def start_server(self):
@@ -55,7 +102,7 @@ class StoreServer:
 
             while True:
                 conn, addr = self.server_socket.accept()
-                self.clients.append(conn)
+                self.client_list.append(conn)
                 client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
                 client_thread.start()
                 print(f"{addr}에 대한 스레드 시작됨")
@@ -66,7 +113,7 @@ class StoreServer:
 
     def close_server(self):
         print("스토어 서버 소켓 닫는 중")
-        for conn in self.clients:
+        for conn in self.client_list:
             conn.close()
         self.server_socket.close()
         print("스토어 서버 소켓 닫힘")
@@ -115,11 +162,11 @@ class StoreServer:
             print(f"상점 상태 업데이트 중 오류 발생: {e}")
             return None
         
-    def robot_call(self):
+    def robot_call(self, order_number):          
+        msg = String()
+        msg.data = order_number
+        self.robotcall_publisher.publish(msg)
         
-        print("R-1로봇 배차 완료")
-
-
     def menu_status(self, m_id, status):
         try:
             if status == '1':
@@ -160,4 +207,30 @@ class StoreServer:
 
                 if target_client:
                     target_client.sendall(msg.encode())
+
+
+def main(args=None):
+    db_manager = DBManager(HOST, 'potato', '1234', 'prj')
+    connection = db_manager.create_connection("StoreServer")
+
+    if not connection:
+        print("Failed to connect to the database.")
+        return
+    
+    rclpy.init(args=args)
+
+    #  노드 생성
+    store_manager = StoreManager(HOST, STORE_PORT,db_manager)
+    server_thread = threading.Thread(target=store_manager.start_server)
+    server_thread.start()
+
+    rclpy.spin(store_manager)
+
+    # 노드 종료
+    store_manager.close_server()
+    store_manager.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
 

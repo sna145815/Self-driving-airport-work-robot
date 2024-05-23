@@ -9,7 +9,7 @@ class DBManager:
         self.database = database
         self.conn = None
 
-    def create_connection(self):
+    def create_connection(self,name):
         try:
             self.conn = mysql.connector.connect(
                 host=self.host,
@@ -18,7 +18,7 @@ class DBManager:
                 database=self.database
             )
             if self.conn.is_connected():
-                print(f"Connected to MySQL database {self.database}")
+                print(name+" "+f"Connected to MySQL database {self.database}")
         except Error as e:
             print(f"Error connecting to database: {e}")
         return self.conn
