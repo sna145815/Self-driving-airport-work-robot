@@ -2,7 +2,7 @@ import rclpy as rp
 from rclpy.node import Node
 from interface_package.srv import Tcp
 from std_msgs.msg import String
-class TestNode(Node):
+class UidNode(Node):
     def __init__(self):
         super().__init__('uid_node')
 
@@ -30,7 +30,7 @@ class TestNode(Node):
 def main(args=None):
     rp.init(args=args)
 
-    service_server = TestNode()
+    service_server = UidNode()
     rp.spin(service_server)
 
     service_server.destroy_node()

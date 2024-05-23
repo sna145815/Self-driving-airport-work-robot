@@ -18,6 +18,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LCDControl.srv"
   "srv/RFIDControl.srv"
   "srv/Tcp.srv"
+  "msg/Navgoal.msg"
+  "msg/Navfeedback.msg"
+  "msg/Navresult.msg"
 )
 
 if(BUILD_TESTING)
