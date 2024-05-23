@@ -11,8 +11,10 @@ class RobotControl(Node):
     def __init__(self):
         super().__init__("robot_control")
 
-        self.order_location_sub = self.create_subscription(OrderLocation, "order_location", self.order_location_callback, 10)
+        self.order_location_sub = self.create_subscription(OrderLocation, "robot_goal", self.order_location_callback, 10)
         self.arrival_pub = self.create_publisher(String, 'goal_arrival', 10)
+        self.order_pub = self.create_publisher(String, '/order_id', 10)
+
 
         self.goal_pub = self.create_publisher(Navgoal, "nav_goal", 10)
         # self.result_client = self.create_client(Navresult, "/nav_result")
@@ -22,13 +24,17 @@ class RobotControl(Node):
                                                      10)
         self.goal_msg = Navgoal()
 
+
     def order_location_callback(self, msg):
         self.get_logger().info(f"Received order id : {msg.order_id}, location : {msg.location}")
         order_id = msg.order_id
         location = msg.location
+        order_msg = String()
+        order_msg.data = order_id
+        self.order_pub.publish(order_msg)
 
         #location 좌표 변환
-        if location == '1':
+        if location == 'S-1':
             x = 1.0
             y = 2.0
         elif location == '2':
@@ -43,6 +49,8 @@ class RobotControl(Node):
     def nav_feedback_callback(self, msg):
         self.get_logger().info(f"Distance remaining: {msg.distance_remaining}")
         arrival_msg = String()
+
+
         arrival_msg.data = "도착하였습니다."
         self.arrival_pub.publish(arrival_msg)
 
