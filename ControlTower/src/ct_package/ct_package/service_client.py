@@ -94,9 +94,16 @@ class LCDServiceClient(Node):
     def __init__(self):
         super().__init__('lcd_service_client')
         self._client = self.create_client(LCDControl, 'lcd_control')
+        self.sub = self.create_subscription(String,'/order_id',self.callback,10)
+        self.sub
+        self.oid=''
 
         while not self._client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Service not available, waiting again...')
+    def callback(self,msg):
+        self.oid = msg.data
+        self.send_request("DDD", self.oid )
+        print("receive uid from CT")
 
     def send_request(self, line1, line2):
         self.get_logger().info("Sending LCD command...")
@@ -122,11 +129,12 @@ class LCDServiceClient(Node):
 
 
 def main(args=None):
-    # #LCD
-    # rclpy.init(args=args)
-    # lcd_service_client = LCDServiceClient()
+    #LCD
+    rclpy.init(args=args)
+    lcd_service_client = LCDServiceClient()
+    rclpy.spin(lcd_service_client)
     # lcd_service_client.run()
-    # rclpy.shutdown()
+    rclpy.shutdown()
 
     # #SERVO
     # rclpy.init(args=args)
@@ -134,12 +142,12 @@ def main(args=None):
     # motor_service_client.run()
     # rclpy.shutdown()
 
-    #RFID
-    rclpy.init(args=args)
-    rfid_service_client = RFIDServiceClient()
-    rfid_service_client.send_request()
-    rclpy.spin(rfid_service_client)
-    rclpy.shutdown()
+    # #RFID
+    # rclpy.init(args=args)
+    # rfid_service_client = RFIDServiceClient()
+    # rfid_service_client.send_request()
+    # rclpy.spin(rfid_service_client)
+    # rclpy.shutdown()
 
-if __name__ == '__main__':
+if __name__ == '__main__':    
     main()
