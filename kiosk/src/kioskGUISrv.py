@@ -14,6 +14,9 @@ from collections import Counter
 from tcp import TCPClient
 from Serial import SerialReceiver
 
+HOST = '192.168.1.101'
+PORT = 9057
+
 StoreDict = {
     "S-1": [
         {"AM-1": {"name": "cheeseBurger", "price": "1,500", "require_time": "5", "description": "유재상의 맛집", "status" : "1"}},
@@ -45,6 +48,7 @@ StoreDict = {
 
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
+        recv = kwargs.pop('recv', None)
         super(MainWindow, self).__init__()
         self.main_window = uic.loadUi('./ui/main.ui')
         self.main_window.show()
@@ -53,22 +57,26 @@ class MainWindow(QMainWindow):
         self.main_window.checkBtn.hide()
         
         self.send_enabled = True
+        self.uidstatus = False
+        self.conn = None
+        self.recv = recv
         
-        self.tcp_server = TCPClient('192.168.0.30', 9021)
+        
+        self.tcp_server = TCPClient(HOST, PORT)
         # self.tcp_server.set_update_callback(self.update_store)  # TCP 서버에서 상태 업데이트를 처리할 콜백 설정
         
         # RFID Serial communication
         self.uid = bytes(4)
+        
         try:
             self.conn = serial.Serial(port = '/dev/ttyACM0', baudrate = 9600, timeout = 1)
         except Exception as e:
             print(f"Failed to open serial port: {e}")
             sys.exit(1)
 
-
-        
         self.recv = SerialReceiver(self.conn)
         self.recv.start()
+            
         self.recv.detected.connect(self.detected)
         self.main_window.orderBtn.clicked.connect(self.go_store)
         self.main_window.checkBtn.clicked.connect(self.go_check)
@@ -108,25 +116,32 @@ class MainWindow(QMainWindow):
         uid_hex = " ".join("{:02X}".format(b) for b in uid)
         print("Detected UID:", uid_hex)
         self.uid = uid_hex
-
+        self.uidstatus = True
         self.recv.pause()
         
         self.send_data()
-        
         self.main_window.textEdit_5.hide()
-        self.main_window.textEdit_6
+        self.main_window.textEdit_6.hide()
+        
         self.main_window.orderBtn.show()
         self.main_window.checkBtn.show()
     
     def go_store(self):
-        storePage = StoreWindow(self.main_window, self.recv, self.tcp_server)  
-        storePage.show()
-        self.main_window.hide()
+        if self.uidstatus == True:
+            storePage = StoreWindow(self.main_window, self.recv, self.tcp_server)  
+            storePage.show()
+            self.main_window.hide()
+        else:
+            pass
         
     def go_check(self):
-        checkPage = CheckWindow(self.main_window, self.tcp_server, self.uid)  
-        checkPage.show()
-        self.main_window.hide()
+        self.main_window.textEdit_5.show()
+        if self.uidstatus == True:
+            checkPage = CheckWindow(self.main_window, self.tcp_server, self.uid)  
+            checkPage.show()
+            self.main_window.hide()
+        else:
+            pass
 
 
 class StoreWindow(QMainWindow):
@@ -163,7 +178,7 @@ class StoreWindow(QMainWindow):
     def go_basket(self):
         basketPage = BasketWindow(self.main_window, self.tcp_server, self.menu, self.selected_store)  
         basketPage.show()
-        self.main_window.hide()
+        self.store_window.hide()
     
     def add_selected_to_basket(self):
         if self.selected_menu is not None:
@@ -290,7 +305,8 @@ class CheckWindow(QMainWindow):
     
     def back(self):
         self.close()
-        self.main_window.show()
+        self.new_main = MainWindow(self)
+
 
 class BasketWindow(QMainWindow):
     def __init__(self, store_window, tcp_server, selected_menulist, selected_store):
@@ -357,7 +373,7 @@ class PayWindow(QMainWindow):
         self.basket_window = basket_window
         self.menulist = menulist
         self.pay_window = uic.loadUi('./ui/pay.ui', self)
-        self.payBtn.hide()
+                
         self.tcp_server = tcp_server
         self.selected_store = selected_store
         
@@ -370,7 +386,7 @@ class PayWindow(QMainWindow):
         
         self.send_enabled = True
         self.backBtn.clicked.connect(self.back)
-        self.payBtn.clicked.connect(self.send_data)
+        # self.payBtn.clicked.connect(self.send_data)
 
         self.timer = QTimer()
         self.timer.setInterval(3000)
@@ -396,9 +412,7 @@ class PayWindow(QMainWindow):
         self.uid = uid_hex
         
         self.send_data()
-
-        self.recv.pause()
-        self.payBtn.show()
+        self.go_main()
         
     def send_data(self):
         print("send_data called")
@@ -408,9 +422,18 @@ class PayWindow(QMainWindow):
         print(f"Sending data: {cmd},{data}")
         # TCP 서버를 통해 데이터를 보냅니다.
         self.tcp_server.send(cmd, data)
+        QMessageBox.information(self.pay_window, "결제 완료", "결제가 완료되었습니다.", QMessageBox.Ok)
+        # self.pay_window.textEdit_5.setText("결제가 완료되었습니다")
+        # self.pay_window.textEdit_6.setText(" ")
+        
+    def go_main(self):
+        self.recv.pause()
+        
+        self.new_main = MainWindow(self, self.recv)
+        self.pay_window.close()
         
     def back(self):
-        self.close()
+        self.pay_window.hide()
         self.recv.pause()
         self.basket_window.show()
         return

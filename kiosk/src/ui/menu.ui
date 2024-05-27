@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>storeWindow</class>
- <widget class="QMainWindow" name="storeWindow">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -14,11 +14,11 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLabel" name="statisticBack">
+   <widget class="QLabel" name="storeLabel">
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>-40</y>
+      <y>-20</y>
       <width>1024</width>
       <height>600</height>
      </rect>
@@ -33,15 +33,15 @@
    <widget class="QPushButton" name="basketBtn">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>420</y>
-      <width>221</width>
-      <height>91</height>
+      <x>80</x>
+      <y>460</y>
+      <width>161</width>
+      <height>61</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>40</pointsize>
+      <pointsize>30</pointsize>
       <weight>75</weight>
       <bold>true</bold>
      </font>
@@ -56,10 +56,10 @@
    <widget class="QTableWidget" name="workTable">
     <property name="geometry">
      <rect>
-      <x>50</x>
-      <y>140</y>
-      <width>931</width>
-      <height>251</height>
+      <x>80</x>
+      <y>80</y>
+      <width>791</width>
+      <height>341</height>
      </rect>
     </property>
     <property name="baseSize">
@@ -76,9 +76,6 @@
     </property>
     <property name="layoutDirection">
      <enum>Qt::LeftToRight</enum>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color:rgb(0,0,0);background-color: rgb(255, 255, 255); border-radius: 20px</string>
     </property>
     <property name="midLineWidth">
      <number>2</number>
@@ -112,7 +109,7 @@
     </row>
     <column>
      <property name="text">
-      <string>매장</string>
+      <string>사진</string>
      </property>
      <property name="font">
       <font>
@@ -154,20 +151,6 @@
     </column>
     <column>
      <property name="text">
-      <string>소요시간</string>
-     </property>
-     <property name="font">
-      <font>
-       <weight>75</weight>
-       <bold>true</bold>
-      </font>
-     </property>
-     <property name="textAlignment">
-      <set>AlignCenter</set>
-     </property>
-    </column>
-    <column>
-     <property name="text">
       <string>설명</string>
      </property>
      <property name="font">
@@ -175,9 +158,6 @@
        <weight>75</weight>
        <bold>true</bold>
       </font>
-     </property>
-     <property name="textAlignment">
-      <set>AlignCenter</set>
      </property>
     </column>
     <item row="0" column="0">
@@ -190,13 +170,17 @@
     </item>
     <item row="0" column="1">
      <property name="text">
-      <string>홍스족발보쌈
-</string>
+      <string>족발</string>
      </property>
     </item>
     <item row="0" column="2">
      <property name="text">
-      <string>웍쟁이가만든 리얼불맛 오늘먹고 또 생각나는 맛</string>
+      <string>11,690원</string>
+     </property>
+    </item>
+    <item row="0" column="3">
+     <property name="text">
+      <string>2인단품 [650g]</string>
      </property>
     </item>
     <item row="1" column="0">
@@ -206,8 +190,7 @@
     </item>
     <item row="1" column="1">
      <property name="text">
-      <string>매머드 커피
-</string>
+      <string>족발보쌈</string>
      </property>
     </item>
     <item row="1" column="2">
@@ -222,7 +205,7 @@
     </item>
     <item row="2" column="1">
      <property name="text">
-      <string>더드림</string>
+      <string>계란찜</string>
      </property>
     </item>
     <item row="2" column="2">
@@ -231,116 +214,74 @@
      </property>
     </item>
    </widget>
-   <widget class="QPushButton" name="westernBtn">
+   <widget class="QPushButton" name="basketBtn_2">
     <property name="geometry">
      <rect>
-      <x>200</x>
-      <y>60</y>
-      <width>151</width>
-      <height>51</height>
+      <x>800</x>
+      <y>450</y>
+      <width>161</width>
+      <height>61</height>
      </rect>
     </property>
     <property name="font">
      <font>
-      <pointsize>20</pointsize>
+      <pointsize>30</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
      </font>
     </property>
     <property name="styleSheet">
      <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
     </property>
     <property name="text">
-     <string>양식</string>
+     <string>담 기</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="chinaBtn">
+   <widget class="QTextEdit" name="textEdit">
     <property name="geometry">
      <rect>
-      <x>710</x>
-      <y>60</y>
-      <width>151</width>
-      <height>51</height>
+      <x>50</x>
+      <y>10</y>
+      <width>301</width>
+      <height>71</height>
      </rect>
     </property>
-    <property name="font">
-     <font>
-      <pointsize>20</pointsize>
-     </font>
-    </property>
     <property name="styleSheet">
-     <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
+     <string notr="true">color:rgb(55, 181, 182);background-color: rgb(255,255,255); border-radius: 20px</string>
     </property>
-    <property name="text">
-     <string>중식</string>
+    <property name="html">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:28pt; font-weight:600;&quot;&gt;홍스족발보쌈&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="japanBtn">
+   <widget class="QTextEdit" name="textEdit_2">
     <property name="geometry">
      <rect>
-      <x>540</x>
-      <y>60</y>
-      <width>151</width>
-      <height>51</height>
+      <x>280</x>
+      <y>460</y>
+      <width>491</width>
+      <height>71</height>
      </rect>
     </property>
-    <property name="font">
-     <font>
-      <pointsize>20</pointsize>
-     </font>
-    </property>
     <property name="styleSheet">
-     <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
+     <string notr="true">color:rgb(0, 0, 0);background-color: rgb(255,255,255); border-radius: 20px</string>
     </property>
-    <property name="text">
-     <string>일식</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="snackBtn">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>60</y>
-      <width>151</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <pointsize>20</pointsize>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
-    </property>
-    <property name="text">
-     <string>간식</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="koreaBtn">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>60</y>
-      <width>151</width>
-      <height>51</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <pointsize>20</pointsize>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
-    </property>
-    <property name="text">
-     <string>한식</string>
+    <property name="html">
+     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:24pt; text-decoration: underline;&quot;&gt;상품이 담겼습니다 !&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
    </widget>
    <widget class="QPushButton" name="backBtn">
     <property name="geometry">
      <rect>
       <x>880</x>
-      <y>40</y>
+      <y>20</y>
       <width>121</width>
       <height>71</height>
      </rect>
@@ -357,49 +298,6 @@
      <string>◀️    Back</string>
     </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit_2">
-    <property name="geometry">
-     <rect>
-      <x>290</x>
-      <y>440</y>
-      <width>491</width>
-      <height>71</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color:rgb(0, 0, 0);background-color: rgb(255,255,255); border-radius: 20px</string>
-    </property>
-    <property name="html">
-     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Ubuntu'; font-size:11pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:24pt; text-decoration: underline;&quot;&gt;상품이 담겼습니다 !&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="loadBtn">
-    <property name="geometry">
-     <rect>
-      <x>770</x>
-      <y>420</y>
-      <width>211</width>
-      <height>91</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <pointsize>40</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">color:rgb(255,255,255);background-color: rgb(55, 181, 182); border-radius: 20px</string>
-    </property>
-    <property name="text">
-     <string>담 기</string>
-    </property>
-   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
@@ -412,28 +310,6 @@ p, li { white-space: pre-wrap; }
    </property>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <widget class="QToolBar" name="toolBar">
-   <property name="windowTitle">
-    <string>toolBar</string>
-   </property>
-   <attribute name="toolBarArea">
-    <enum>TopToolBarArea</enum>
-   </attribute>
-   <attribute name="toolBarBreak">
-    <bool>false</bool>
-   </attribute>
-  </widget>
-  <widget class="QToolBar" name="toolBar_2">
-   <property name="windowTitle">
-    <string>toolBar_2</string>
-   </property>
-   <attribute name="toolBarArea">
-    <enum>TopToolBarArea</enum>
-   </attribute>
-   <attribute name="toolBarBreak">
-    <bool>false</bool>
-   </attribute>
-  </widget>
  </widget>
  <resources/>
  <connections/>
