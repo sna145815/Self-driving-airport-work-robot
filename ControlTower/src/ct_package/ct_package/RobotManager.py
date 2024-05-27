@@ -9,6 +9,7 @@ from interface_package.srv import GoalArrival
 from interface_package.srv import RobotCall
 from interface_package.srv import StoreAlarm
 from interface_package.srv import DeliveryBox
+from interface_package.srv import RobotDispatch
 
 HOST = '192.168.1.105'
 
@@ -26,8 +27,16 @@ class RobotManager(Node):
 
         self.order_queue = queue.Queue()
 
+        self.robot_dispatch_srv = self.create_service(RobotDispatch,'robot_dispatch',self.robot_dispatch_callback)
+
+        self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
+
+        self.delivery_box_srv = self.create_service(DeliveryBox,'delivery_box',self.delivery_box_callback)
+
+  
+
         self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
-        
+     
         while not self.robotcall_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('RobotCall Service, waiting again...')
         self.get_logger().info('RobotCall Service available.')
@@ -37,10 +46,6 @@ class RobotManager(Node):
         while not self.store_alarm_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('storeAlarm Service, waiting again...')
         self.get_logger().info('storeAlarm Service available.')
-
-        self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
-
-        self.delivery_box_srv = self.create_service(DeliveryBox,'delivery_box',self.delivery_box_callback)
 
         #self.position_sub = self.create_subscription(Location, 'robot_position', self.position_callback, 10)
 
@@ -129,25 +134,27 @@ class RobotManager(Node):
             self.robotcall_cli.get_logger().error('Exception while calling service: %r' % future.exception())
             return False
 
-    def robot_call_callback(self, order_num):
+    def robot_dispatch_callback(self,req, res):
         try:
-            print("robotCALL LOGIC@!!!")
+            order_num = req.order_id
             self.order_queue.put(order_num)
 
             #일할 로봇을 뽑아옴
             work_robot = self.priority_robot(order_num)
 
             if work_robot == None:
-                return
+                return res.success
             else:
                 store_id,kiosk_id,uid = self.get_order(order_num)
                 result = self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
                 if result:
                     self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
                     self.order_queue.get()
-
+                    return res.success
         except Exception as e:
             print(f"주문 정보를 검색하는 중 오류 발생: {e}")
+            res.success = False
+            return res.success
 
     def status_manage(self, order_num, order_status, robot_id, robot_status, log_status):
         try:

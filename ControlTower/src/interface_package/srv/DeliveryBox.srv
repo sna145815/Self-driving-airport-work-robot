@@ -2,5 +2,5 @@ int64 status
 string order_id
 string robot_id
 ---
-stirng robot_id
+string robot_id
 bool success
