@@ -11,15 +11,11 @@ from interface_package.srv import StoreAlarm
 from interface_package.srv import OrderCall
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-<<<<<<< HEAD
 
 HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
 # HOST = '192.168.0.210' # server(yjs) ethernet
 HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
 STORE_PORT = 9020
-=======
-
->>>>>>> origin/dev
 
 class StoreManager(Node):
     def __init__(self, host, port,db_manager):
@@ -52,21 +48,6 @@ class StoreManager(Node):
 
         return response
 
-<<<<<<< HEAD
-=======
-            query = """
-                SELECT A.OrderNumber, 
-                    (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
-                    B.Menu_cnt 
-                FROM `Order` A 
-                JOIN OM_list B 
-                ON A.OrderNumber = B.OrderNumber 
-                WHERE A.OrderNumber = %s;
-            """
-            params = (order_number,)
-            result = self.db_manager.fetch_query(query, params)
-            print("asdfas",result)
->>>>>>> origin/dev
 
     def order_call_callback_service(self, request, response):
         
