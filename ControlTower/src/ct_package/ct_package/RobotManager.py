@@ -11,30 +11,30 @@ from interface_package.srv import StoreAlarm
 from interface_package.srv import DeliveryBox
 from interface_package.srv import RobotDispatch
 
-HOST = '192.168.1.105'
+DBHOST = '192.168.1.105'
 
 class RobotManager(Node):
     def __init__(self,dbmanager):
         super().__init__('robot_manager_node')
 
         self.robots = {
-                        1: (0, 0),
-                        2: (0, 0),
-                        3: (0, 0)
+                        "R-1": (0, 0),
+                        "R-2": (0, 0),
+                        "R-3": (0, 0)
                     }
 
         self.db_manager = dbmanager
 
         self.order_queue = queue.Queue()
 
+        #서비스 Create
         self.robot_dispatch_srv = self.create_service(RobotDispatch,'robot_dispatch',self.robot_dispatch_callback)
 
         self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
 
         self.delivery_box_srv = self.create_service(DeliveryBox,'delivery_box',self.delivery_box_callback)
 
-  
-
+        #서비스 구독
         self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
      
         while not self.robotcall_cli.wait_for_service(timeout_sec=1.0):
@@ -152,7 +152,7 @@ class RobotManager(Node):
                     self.order_queue.get()
                     return res.success
         except Exception as e:
-            print(f"주문 정보를 검색하는 중 오류 발생: {e}")
+            self.get_logger().error(f"주문 정보를 검색하는 중 오류 발생: {e}")
             res.success = False
             return res.success
 
@@ -183,7 +183,8 @@ class RobotManager(Node):
             self.execute_query(query, params)
         except Exception as e:
             # Log the error or handle it as needed
-            print(f"An error occurred: {e}")
+            self.get_logger().error(f"An error occurred: {e}")
+
 
     def notify_store(self,status,order_num):
         req = StoreAlarm.Request()
@@ -276,7 +277,7 @@ class RobotManager(Node):
         
         for robot_id, (r_x, r_y) in self.robots.items():
             distance = self.calculate_distance(r_x, r_y,s_x,s_y)
-            #print(f"Robot {robot_id} at ({x}, {y}) has distance {distance} to (10, 10)")
+
             if distance < min_distance:
                 min_distance = distance
                 work_robot = robot_id
@@ -284,7 +285,7 @@ class RobotManager(Node):
         return work_robot        
 
 def main(args=None):
-    db_manager = DBManager(HOST, 'potato', '1234', 'prj')
+    db_manager = DBManager(DBHOST, 'potato', '1234', 'prj')
     connection = db_manager.create_connection("StoreServer")
 
     if not connection:
