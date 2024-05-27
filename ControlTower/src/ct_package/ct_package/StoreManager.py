@@ -6,7 +6,7 @@ from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 
 
-HOST = '192.168.0.30'
+HOST = '192.168.1.105'
 STORE_PORT = 9023
 
 class StoreManager(Node):

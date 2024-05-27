@@ -11,7 +11,7 @@ from ct_package.db_manager import DBManager
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #from TcpNode import *
 
-HOST = '192.168.0.44'
+HOST = '192.168.1.105'
 KIOSK_PORT = 9021
 
 class KioskManager(Node):
