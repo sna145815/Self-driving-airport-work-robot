@@ -3,10 +3,9 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 import queue
-from interface_package.msg import OrderLocation
 from ct_package.db_manager import DBManager
-
-
+from interface_package.srv import GoalArrival
+from interface_package.srv import RobotCall
 HOST = '192.168.0.44'
 
 class RobotManager(Node):
@@ -17,40 +16,47 @@ class RobotManager(Node):
 
         self.order_queue = queue.Queue()
 
-        self.robotcall_sub = self.create_subscription(String, 'robotCall', self.robot_call_callback, 10)
+        self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
         
-        self.goal_pub = self.create_publisher(OrderLocation, 'robot_goal', 10)
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('RobotCall Service, waiting again...')
+        self.get_logger().info('RobotCall Service available.')
 
-        self.arrival_sub = self.create_subscription(String, 'goal_arrival', self.arrival_callback, 10)
+        self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
 
         #self.position_sub = self.create_subscription(PoseStamped, 'robot_position', self.position_callback, 10)
 
         self.get_logger().info('로봇 매니저 노드 시작됨')
 
-        ##필요 ROS
-        # robotcall.srv
-        # arrival.srv
-        # 실시간 위치 전송 topic
-        # 매장/고객 적재함 통신( 매장측은 넣고 출발 할때만 (열땐 필요 없음) 고객측은 음식 수거하고 닫을 때만 (열때 필요 없음))
 
 
-    def arrival_callback(self, msg):
+    def arrival_callback(self, req, res):
         self.get_logger().info('로봇이 목표 지점에 도착했습니다.')
-        # 0 : 완료
-        # 1 : 매장도착
-        # 2 : 키오스크 도착  = DB에 아무 처리도 하지 않음
-        # 3 : 충전장소 복귀 완료 = DB에 아무 처리도 하지 않음
-        if msg.status == 0:
-            self.check_order()
-        elif msg.status == 1:
-            order_num = msg.order_id
-            work_robot = msg.robot_id
-            self.status_manage(order_num,"매장도착",work_robot,"매장도착","매장도착")
-            # 4. StoreManager로 send (매장에 로봇 도착알림 주기 위해서) 추가
-        elif msg.status == 2:
-            order_num = msg.order_id
-            work_robot = msg.robot_id
-            self.status_manage(order_num,"배달지도착",work_robot,"배달지도착","배달지도착")
+        try:
+            # 0: 완료
+            # 1: 매장 도착
+            # 2: 키오스크 도착
+            # 3: 충전 장소 복귀 완료 = DB에 아무 처리도 하지 않음
+            if req.status == 0:
+                self.check_order()
+                res.success = True
+            elif req.status == 1:
+                order_num = req.order_id
+                work_robot = req.robot_id
+                self.status_manage(order_num, "매장도착", work_robot, "매장도착", "매장도착")
+                # StoreManager로 send (매장에 로봇 도착 알림 주기 위해서) 추가
+                #self.notify_store_manager(work_robot)
+                res.success = True
+            elif req.status == 2:
+                order_num = req.order_id
+                work_robot = req.robot_id
+                self.status_manage(order_num, "배달지도착", work_robot, "배달지도착", "배달지도착")
+                res.success = True
+            return res
+        except Exception as e:
+            self.get_logger().error(f'Exception in arrival_callback: {e}')
+            res.success = False
+            return res
 
     
     ####################
@@ -70,16 +76,18 @@ class RobotManager(Node):
 
     def robot_send_goal(self,order_num,store_id,kiosk_id,uid,work_robot):
         # 로봇에게 발행
-        msg = OrderLocation()
-        msg.order_id = order_num
-        msg.store_id = store_id
-        msg.kiosk_id = kiosk_id
-        msg.uid = uid
-        msg.robot_id = work_robot
-        print("PUB한다@~!~")
-        self.goal_pub.publish(msg)
-        #
+        req = RobotCall.Request()
+        req.order_id = order_num
+        req.store_id = store_id
+        req.kiosk_id = kiosk_id
+        req.uid = uid
+        req.robot_id = work_robot
+
+        future = self.client.call_async(req)
+        
         self.get_logger().info(work_robot+' 로봇 배정')
+
+        return future
 
 
     def robot_call_callback(self, order_num):
@@ -94,9 +102,15 @@ class RobotManager(Node):
                 return
             else:
                 store_id,kiosk_id,uid = self.get_order(order_num)
-                self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
-                self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
-                self.order_queue.get()
+                future = self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
+
+                if future.result() is not None:
+                    response = future.result()
+                    self.robotcall_cli.get_logger().info(f'Result: {response.success}')
+                    self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
+                    self.order_queue.get()
+                else:
+                    self.robotcall_cli.get_logger().error('Exception while calling service: %r' % future.exception())
         except Exception as e:
             print(f"주문 정보를 검색하는 중 오류 발생: {e}")
 

@@ -18,10 +18,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LCDControl.srv"
   "srv/RFIDControl.srv"
   "srv/Tcp.srv"
+  "srv/GoalArrival.srv"
+  "srv/RobotCall.srv"
   "msg/Navgoal.msg"
   "msg/Navfeedback.msg"
   "msg/Navresult.msg"
-  "msg/OrderLocation.msg"
 )
 
 if(BUILD_TESTING)
