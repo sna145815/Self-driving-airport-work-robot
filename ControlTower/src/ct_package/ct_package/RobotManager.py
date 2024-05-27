@@ -8,6 +8,7 @@ from ct_package.db_manager import DBManager
 from interface_package.srv import GoalArrival
 from interface_package.srv import RobotCall
 from interface_package.srv import StoreAlarm
+from interface_package.srv import DeliveryBox
 
 HOST = '192.168.1.105'
 
@@ -16,9 +17,9 @@ class RobotManager(Node):
         super().__init__('robot_manager_node')
 
         self.robots = {
-                        1: (2, 3),
-                        2: (5, 8),
-                        3: (12, 6)
+                        1: (0, 0),
+                        2: (0, 0),
+                        3: (0, 0)
                     }
 
         self.db_manager = dbmanager
@@ -31,13 +32,15 @@ class RobotManager(Node):
             self.get_logger().info('RobotCall Service, waiting again...')
         self.get_logger().info('RobotCall Service available.')
 
-        self.store_alarm_cli = self.create_client(StoreAlarm, 'storeAlarm')
+        self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
         
         while not self.store_alarm_cli.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('storeAlarm Service, waiting again...')
         self.get_logger().info('storeAlarm Service available.')
 
         self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
+
+        self.delivery_box_srv = self.create_service(DeliveryBox,'delivery_box',self.delivery_box_callback)
 
         #self.position_sub = self.create_subscription(Location, 'robot_position', self.position_callback, 10)
 
@@ -58,17 +61,18 @@ class RobotManager(Node):
             # 1: 매장 도착
             # 2: 키오스크 도착
             # 3: 충전 장소 복귀 완료 = DB에 아무 처리도 하지 않음
+            status = req.status
             order_num = req.order_id
             work_robot = req.robot_id
 
-            if req.status == 1:
+            if status == 1:
                 self.get_logger().info('로봇이 매장에 도착했습니다.')
                 self.status_manage(order_num, "매장도착", work_robot, "매장도착", "매장도착")
-                self.notify_store(req.status, order_num)
-            elif req.status == 2:
+                self.notify_store(status, order_num)
+            elif status == 2:
                 self.get_logger().info('로봇이 배달지에 도착했습니다.')
                 self.status_manage(order_num, "배달지도착", work_robot, "배달지도착", "배달지도착")
-            elif req.status == 3:
+            elif status == 3:
                 self.get_logger().info('로봇이 충전소에 도착했습니다.')
             else:
                 raise ValueError(f"Invalid status value: {req.status}")
@@ -82,18 +86,22 @@ class RobotManager(Node):
         return res
 
     
-    ####################
-    # ROS 통신 2개 추가
+    ##적재함 닫힘 서비스
+    def delivery_box_callback(self, req, res):
+        try:           
+            if req.status == 0:
+                self.status_manage(req.order_id,"배달중",req.robot_id,"배달중","배달시작")
+            elif req.status == 1:
+                self.status_manage(req.order_id,"완료",req.robot_id,"대기중","완료")
+                self.notify_store(req.status,req.order_id)
+                self.check_order()
+            res.success = True
+        except Exception as e:
+            self.get_logger().error(f'Exception in arrival_callback: {e}')
+            res.success = False
 
-    # 매장에서 음식을 넣으면 (실질적 배송이 시작 될 시점)
-        # self.status_manage(order_num,"배달중",work_robot,"배달중","배달시작")
+        return res
 
-
-    #완료는 로봇에서 RFID찍고 음식을 찾았을때 완료 그때 ROS통신 하나 받으면 
-        # self.status_manage(order_num,"완료",work_robot,"대기중","완료")
-        # self.notify_store() 
-        # self.check_order() 
-    ######################
 
     def position_callback(self, msg):
         self.get_logger().info('로봇의 현재 위치: x=%f, y=%f, z=%f', msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
@@ -173,7 +181,7 @@ class RobotManager(Node):
         req.status = status
         req.order_id = order_num
         
-        future = self.client.call_async(req)
+        future = self.store_alarm_cli.call_async(req)
         
         self.get_logger().info('매장 알람 SEND')
 

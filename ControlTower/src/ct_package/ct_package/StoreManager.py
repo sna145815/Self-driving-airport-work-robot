@@ -44,6 +44,7 @@ class StoreManager(Node):
             """
             params = (order_number,)
             result = self.db_manager.fetch_query(query, params)
+            print("asdfas",result)
 
             if result:
                 order_number = result[0][0]

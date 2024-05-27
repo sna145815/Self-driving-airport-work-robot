@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 #from TcpNode import *
 
 HOST = '192.168.1.105'
-KIOSK_PORT = 9021
+KIOSK_PORT = 9027
 
 class KioskManager(Node):
     def __init__(self, host, port,dbmanager):
