@@ -96,8 +96,10 @@ class RobotManager(Node):
                 self.notify_store(req.status,req.order_id)
                 self.check_order()
             res.success = True
+            res.robot_id = req.robot_id
         except Exception as e:
             self.get_logger().error(f'Exception in arrival_callback: {e}')
+            res.robot_id = req.robot_id
             res.success = False
 
         return res
