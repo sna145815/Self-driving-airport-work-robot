@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="icon">
+    <file>baemin.jpeg</file>
+    <file>김보선.jpg</file>
+  </qresource>
+  <qresource prefix="ui">
+    <file>main.ui</file>
+  </qresource>
+</RCC>
