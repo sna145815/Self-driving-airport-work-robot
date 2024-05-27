@@ -18,16 +18,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LCDControl.srv"
   "srv/RFIDControl.srv"
   "srv/Tcp.srv"
-<<<<<<< HEAD
   "srv/OrderCall.srv"
-  "srv/StoreAlarm.srv"
-=======
   "srv/GoalArrival.srv"
   "srv/RobotCall.srv"
   "srv/DeliveryBox.srv"
   "srv/StoreAlarm.srv"
   "srv/RobotDispatch.srv"
->>>>>>> origin/dev
   "msg/Navgoal.msg"
   "msg/Navfeedback.msg"
   "msg/Navresult.msg"
