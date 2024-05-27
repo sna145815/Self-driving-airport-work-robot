@@ -29,7 +29,7 @@ setup(
             'robot_control = ct_package.robot_control:main',
             'kiosk_manager = ct_package.KioskManager:main',
             'store_manager = ct_package.StoreManager:main',
-            'robot_manager = ct_package.RobotManager:main'
+            'robot_manager = ct_package.RobotManager:main',
         ],
     },
 )

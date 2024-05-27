@@ -1,3 +1,5 @@
+import sys
+import os
 import socket
 import threading
 import rclpy
@@ -5,9 +7,15 @@ from rclpy.node import Node
 from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 
+from interface_package.srv import StoreAlarm
+from interface_package.srv import OrderCall
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-HOST = '192.168.0.30'
-STORE_PORT = 9023
+
+HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
+# HOST = '192.168.0.210' # server(yjs) ethernet
+HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
+STORE_PORT = 9020
 
 class StoreManager(Node):
     def __init__(self, host, port,db_manager):
@@ -19,48 +27,76 @@ class StoreManager(Node):
         self.db_manager = db_manager
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        #로봇 콜 PUB발행
+        # SM to RM 로봇 콜 PUB발행
         self.robotcall_publisher = self.create_publisher(String, 'robotCall', 10)
 
-        #주문요청 SUB
-        self.order_call_subscriber = self.create_subscription(String, 'orderCall', self.order_call_callback, 10)
+        # KM to SM 주문요청 SUB
+        # self.order_call_subscriber = self.create_subscription(String, 'orderCall', self.order_call_callback, 10)
+
+        self.storeAlarmServer = self.create_service(StoreAlarm, 'store_alarm', self.store_callback_service)
+        self.oderCallServer = self.create_service(OrderCall, 'order_call', self.order_call_callback_service)
+
+    def store_callback_service(self, request,response):
+        print('status : ', request.status)
+        print('orderId : ', request.order_id)
+
+        if request.status:
+            response = False
+        else:
+            response =True
 
 
-    def order_call_callback(self, msg):
-        # 받은 메시지를 '/'를 기준으로 분할하여 파싱
-        try:
-            data_list = msg.data.split('/')
-            store_ip = data_list[0]
-            order_number = data_list[1]
+        return response
 
-            query = """
-                SELECT A.OrderNumber, 
-                    (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
-                    B.Menu_cnt 
-                FROM `Order` A 
-                JOIN OM_list B 
-                ON A.OrderNumber = B.OrderNumber 
-                WHERE A.OrderNumber = %s;
-            """
-            params = (order_number,)
-            result = self.db_manager.fetch_query(query, params)
 
-            if result:
-                order_number = result[0][0]
-                menus = [f"{row[1]}/{row[2]}" for row in result]
-                cnt = len(menus)
-                msg = f"OS,{order_number},{cnt},{','.join(menus)}"
-                store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
-                print(msg)
-                if store_ip:
-                    store_ip.sendall(msg.encode())
+    def order_call_callback_service(self, request, response):
+        
+        if request.ip:
+            response.success = True
+            # 받은 메시지를 '/'를 기준으로 분할하여 파싱
+            try:
+                # data_list = msg.data.split('/')
+                # store_ip = data_list[0]
+                # order_number = data_list[1]
+
+                store_ip = request.ip
+                order_number = request.order_no
+                print(type(order_number))
+
+                query = """
+                    SELECT A.OrderNumber, 
+                        (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
+                        B.Menu_cnt 
+                    FROM `Order` A 
+                    JOIN OM_list B 
+                    ON A.OrderNumber = B.OrderNumber 
+                    WHERE A.OrderNumber = %s;
+                """
+                # params = (order_number,)
+                result = self.db_manager.fetch_query(query, [order_number])
+                print("orderNo : ", order_number)
+                print("result : ", result)
+
+                if result:
+                    order_number = result[0][0]
+                    menus = [f"{row[1]}/{row[2]}" for row in result]
+                    cnt = len(menus)
+                    msg = f"OS,{order_number},{cnt},{','.join(menus)}"
+                    store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
+                    print(msg)
+                    if store_ip:
+                        store_ip.sendall(msg.encode())
+                    else:
+                        print("매장 접속 안됨")
                 else:
-                    print("매장 접속 안됨")
-            else:
-                print("DB결과 없음")
-        except Exception as e:
-                print(f"Error fetching order details: {e}")
-                return None
+                    print("DB결과 없음")
+            except Exception as e:
+                    print(f"Error fetching order details: {e}")
+                    return None
+        else:
+            response.success = False
+        
+        return response
 
     
     def handle_client(self, conn, addr):
@@ -210,7 +246,7 @@ class StoreManager(Node):
 
 
 def main(args=None):
-    db_manager = DBManager(HOST, 'potato', '1234', 'prj')
+    db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
     connection = db_manager.create_connection("StoreServer")
 
     if not connection:
