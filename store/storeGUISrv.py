@@ -13,9 +13,10 @@ import time
 import threading
 # import numpy as np
 
-HOST = "192.168.0.210" # yjs
+# HOST = "192.168.0.210" # yjs ethernet
+HOST = "192.168.1.102" # yjs rosteam3 wifi
 # HOST = "192.168.0.30" # jinhong
-PORT = 9022
+PORT = 9023
 
 from_class1 = uic.loadUiType("selectStore.ui")[0]
 from_class2 = uic.loadUiType("store.ui")[0]
@@ -129,7 +130,8 @@ class SecondScreen(QWidget, from_class2):
         self.menuToggle = 1
         self.storeToggle = 1
 
-        self.DRbtn.clicked.connect(self.reqRobot)
+        # test btn
+        self.DRbtn.clicked.connect(self.reqRobot2)
         # self.MSbtn.clicked.connect(self.ctrlMenuStatus)
         self.SSbtn.clicked.connect(self.ctrlStoreStatus)
 
@@ -268,7 +270,30 @@ class SecondScreen(QWidget, from_class2):
         # storeID = "S-1"
         # orderNo = "A1"
 
+    
         message = cmd + "," + self.storeId + "," + str(orderNo)
+
+        self.client_socket.sendall(message.encode())
+
+        print("hello Store")
+
+        # try:
+        #     print("")
+        # except Exception as e:
+        #     print("Error tcp send to GUI : ", e)
+        # finally:
+        #     self.tcpStop()
+
+    def reqRobot2(self):
+        
+        cmd = "DR"
+        storeId = "S-1"
+        orderNo = 32
+        # storeID = "S-1"
+        # orderNo = "A1"
+
+    
+        message = cmd + "," + storeId + "," + str(orderNo)
 
         self.client_socket.sendall(message.encode())
 
@@ -462,7 +487,7 @@ class SecondScreen(QWidget, from_class2):
             # print(self.menuList)
             
             self.addList(orderNo, orderStatus, totalMenuCnt, DRobotStatusText, DRobotNo)
-        elif cmd == 'DS':
+        elif cmd == 'DS': # 매장 알람
             # self.orderNo
             DRobotNo = result.split(',')[3]
 

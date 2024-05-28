@@ -9,17 +9,20 @@ from ct_package.db_manager import DBManager
 
 from interface_package.srv import StoreAlarm
 from interface_package.srv import OrderCall
+from interface_package.srv import RobotDispatch
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
 # HOST = '192.168.0.210' # server(yjs) ethernet
 HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
-STORE_PORT = 9020
+STORE_PORT = 9023
 
 class StoreManager(Node):
-    def __init__(self, host, port,db_manager):
+    def __init__(self, host, port, db_manager):
         super().__init__('store_server_node')
+
+        self.dbConnName = "StoreServer"
 
         self.host = host
         self.port = port
@@ -27,76 +30,148 @@ class StoreManager(Node):
         self.db_manager = db_manager
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+
         # SM to RM 로봇 콜 PUB발행
-        self.robotcall_publisher = self.create_publisher(String, 'robotCall', 10)
+        # 서비스로 바꿔
+        # self.robotcall_publisher = self.create_publisher(String, 'robotCall', 10)
+        self.robotDispatch = self.create_client(RobotDispatch,'/robot_dispatch')
+        self.req_robotDispatch = RobotDispatch.Request()
 
         # KM to SM 주문요청 SUB
         # self.order_call_subscriber = self.create_subscription(String, 'orderCall', self.order_call_callback, 10)
 
         self.storeAlarmServer = self.create_service(StoreAlarm, 'store_alarm', self.store_callback_service)
-        self.oderCallServer = self.create_service(OrderCall, 'order_call', self.order_call_callback_service)
+        self.oderCallServer1 = self.create_service(OrderCall, 'order_call', self.order_call_callback_service)
+        # self.oderCallServer1 = self.create_service(OrderCall, 'Kiosk1/order_call', self.order_call_callback_service)
+        # self.oderCallServer2 = self.create_service(OrderCall, 'Kiosk2/order_call', self.order_call_callback_service)
 
-    def store_callback_service(self, request,response):
+    # def robot_dispatch_callback(self, request, response):
+    #     self.req_robotDispatch.order_id = "1"
+    #     future = self.robotDispatch.call_async(self.req_robotDispatch)
+    #     rclpy.spin_until_future_complete(self, future)   
+    #     pass
+    
+    def store_callback_service(self, request, response):    # status, orderid
         print('status : ', request.status)
         print('orderId : ', request.order_id)
 
-        if request.status:
-            response = False
-        else:
-            response =True
+        try:
+            if request.order_id:
+                response.success = True
 
+                # if request.status == 0:
+                #     status = "배차완료"
+                # elif request.status == 1:
+                #     status = "매장도착"
+                # elif request.status == 2:
+                #     status = "배달완료"
+                # else:
+                #     print("wrong request!!!!!")
+                
+                robotStatus = str(request.status)
 
-        return response
-
-
-    def order_call_callback_service(self, request, response):
-        
-        if request.ip:
-            response.success = True
-            # 받은 메시지를 '/'를 기준으로 분할하여 파싱
-            try:
-                # data_list = msg.data.split('/')
-                # store_ip = data_list[0]
-                # order_number = data_list[1]
-
-                store_ip = request.ip
-                order_number = request.order_no
-                print(type(order_number))
+                orderNo = str(request.order_id)
 
                 query = """
-                    SELECT A.OrderNumber, 
-                        (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
-                        B.Menu_cnt 
-                    FROM `Order` A 
-                    JOIN OM_list B 
-                    ON A.OrderNumber = B.OrderNumber 
-                    WHERE A.OrderNumber = %s;
-                """
-                # params = (order_number,)
-                result = self.db_manager.fetch_query(query, [order_number])
-                print("orderNo : ", order_number)
-                print("result : ", result)
+                        SELECT s.Store_ip , o.Robot_ID 
+                        FROM `Order` o 
+                        JOIN Store s ON o.Store_ID = s.ID 
+                        WHERE o.OrderNumber = %s
+                    """
+                
+                result = self.db_manager.fetch_query(query, self.dbConnName, [orderNo])
 
                 if result:
-                    order_number = result[0][0]
-                    menus = [f"{row[1]}/{row[2]}" for row in result]
-                    cnt = len(menus)
-                    msg = f"OS,{order_number},{cnt},{','.join(menus)}"
-                    store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
+                    print("result : ", result)
+                    ip = result[0][0]
+                    robotID = result[0][1]
+
+                    msg = f"DS,{orderNo},{robotStatus},{robotID}"
+
+                    # menus = [f"{row[1]}/{row[2]}" for row in result]
+                    # cnt = len(menus)
+                    # msg = f"OS,{order_number},{cnt},{','.join(menus)}"
+                    store_ip = next((client for client in self.client_list if client.getpeername()[0] == ip), None)
+                    print(store_ip)
                     print(msg)
+
                     if store_ip:
                         store_ip.sendall(msg.encode())
                     else:
                         print("매장 접속 안됨")
                 else:
                     print("DB결과 없음")
-            except Exception as e:
-                    print(f"Error fetching order details: {e}")
-                    return None
-        else:
-            response.success = False
-        
+            else:
+                response.success = False
+
+        except Exception as e:
+            print("store_callback Error : ", e)
+        except KeyboardInterrupt:
+            pass
+
+
         return response
+
+
+    def order_call_callback_service(self, request, response):
+        try:
+            if request.ip:
+                response.success = True
+                print("true@@@@@@@@@@@@@@@@@@@@@@@@")
+                # self.db_manager.create_connection("StoreServer")
+                # 받은 메시지를 '/'를 기준으로 분할하여 파싱
+                try:
+                    # data_list = msg.data.split('/')
+                    # store_ip = data_list[0]
+                    # order_number = data_list[1]
+
+                    store_ip = request.ip
+                    order_number = request.order_no
+                    print(type(order_number))
+                    print("orderNo : ", order_number)
+
+                    query = """
+                        SELECT A.OrderNumber, 
+                            (SELECT Name FROM Menu WHERE ID = B.Menu_ID) AS Menu_Name,
+                            B.Menu_cnt 
+                        FROM `Order` A 
+                        JOIN OM_list B 
+                        ON A.OrderNumber = B.OrderNumber 
+                        WHERE A.OrderNumber = %s;
+                    """
+
+                    result = self.db_manager.fetch_query(query, self.dbConnName, [order_number])
+                    # print("result : ", result)
+
+                    if result:
+                        print("result : ", result)
+                        order_number = result[0][0]
+                        menus = [f"{row[1]}/{row[2]}" for row in result]
+                        cnt = len(menus)
+                        msg = f"OS,{order_number},{cnt},{','.join(menus)}"
+                        store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
+                        print(msg)
+
+                        if store_ip:
+                            store_ip.sendall(msg.encode())
+                        else:
+                            print("매장 접속 안됨")
+                    else:
+                        print("DB결과 없음")
+                except Exception as e:
+                        print(f"Error fetching order details: {e}")
+                        return None
+            else:
+                print("false@@@@@@@@@@@@@@@@@@@@@@@@")
+                response.success = False
+            
+            print(response)
+            
+            return response
+        except Exception as e:
+            print("Error message : ", e)
+        except KeyboardInterrupt:
+            self.close_server()
 
     
     def handle_client(self, conn, addr):
@@ -124,11 +199,15 @@ class StoreManager(Node):
                         data_list.clear()
                     except ConnectionResetError:
                         break
+        except KeyboardInterrupt:
+            print("keyboard exit")
+            self.close_server()
         finally:
-            print(f"{addr} 연결 해제")
-            if conn in self.client_list:
-                self.client_list.remove(conn)
-            conn.close()
+            self.close_server()
+            # print(f"{addr} 연결 해제")
+            # if conn in self.client_list:
+            #     self.client_list.remove(conn)
+            # conn.close()
 
     def start_server(self):
         try:
@@ -169,7 +248,7 @@ class StoreManager(Node):
                         """
 
         params = (param,)
-        self.db_manager.execute_query(query, params)
+        self.db_manager.execute_query(query, self.dbConnName,params)
 
 
     def store_status(self, s_id, status):
@@ -190,18 +269,30 @@ class StoreManager(Node):
                 msg = "SS"+"/"+s_id+"/"+"0"
                 
             params = (s_id,)
-            self.db_manager.execute_query(query, params)
+            self.db_manager.execute_query(query, self.dbConnName, params)
                                        
             self.k_send(msg)
+            
 
         except Exception as e:
             print(f"상점 상태 업데이트 중 오류 발생: {e}")
             return None
         
     def robot_call(self, order_number):          
-        msg = String()
-        msg.data = order_number
-        self.robotcall_publisher.publish(msg)
+        # msg = String()
+        # msg.data = order_number
+        # self.robotcall_publisher.publish(msg)
+        print("robot call")
+
+        self.req_robotDispatch.order_id = order_number
+        future = self.robotDispatch.call_async(self.req_robotDispatch)
+        # rclpy.spin_until_future_complete(self, future)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
+
+        if future.result() is not None:
+            self.get_logger().info(f'응답 받음: {future.result().success}')
+        else:
+            self.get_logger().error('서비스 호출 실패')
         
     def menu_status(self, m_id, status):
         try:
@@ -234,7 +325,7 @@ class StoreManager(Node):
                 SELECT Kiosk_ip 
                 FROM Kiosk;
             """
-        result = self.db_manager.fetch_query(query)
+        result = self.db_manager.fetch_query(query, self.dbConnName)
 
         if result:
             for kip in result:
@@ -248,16 +339,18 @@ class StoreManager(Node):
 
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
-    connection = db_manager.create_connection("StoreServer")
+    # dbConnName = "StoreServer"
+    # connection = db_manager.create_connection(dbConnName)
+    
 
-    if not connection:
-        print("Failed to connect to the database.")
-        return
+    # if not connection:
+    #     print("Failed to connect to the database.")
+    #     return
     
     rclpy.init(args=args)
 
     #  노드 생성
-    store_manager = StoreManager(HOST, STORE_PORT,db_manager)
+    store_manager = StoreManager(HOST, STORE_PORT, db_manager)
     server_thread = threading.Thread(target=store_manager.start_server)
     server_thread.start()
 

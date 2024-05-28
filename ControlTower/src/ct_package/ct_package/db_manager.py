@@ -8,8 +8,8 @@ class DBManager:
         self.password = password
         self.database = database
         self.conn = None
-
-    def create_connection(self,name):
+        
+    def create_connection(self, name):
         try:
             self.conn = mysql.connector.connect(
                 host=self.host,
@@ -29,22 +29,26 @@ class DBManager:
             self.conn.close()
             print("MySQL connection is closed")
 
-    def execute_query(self, query, params=None):
+    def execute_query(self, query, name, params=None):
+        conn = self.create_connection(name)
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             if params:
                 cursor.execute(query, params)
             else:
                 cursor.execute(query)
-            self.conn.commit()
+            conn.commit()
             print("Query executed successfully")
         except Error as e:
             print(f"Error executing query: {e}")
+        finally:
+            cursor.close()
+            conn.close()
 
-    def fetch_query(self, query, params=None):
-
+    def fetch_query(self, query, name, params=None):
+        conn = self.create_connection(name)
         try:
-            cursor = self.conn.cursor()
+            cursor = conn.cursor()
             if params:
                 cursor.execute(query, params)
             else:
@@ -54,5 +58,6 @@ class DBManager:
         except Error as e:
             print(f"Error fetching query: {e}")
             return None
-
-
+        finally:
+            cursor.close()
+            conn.close()
