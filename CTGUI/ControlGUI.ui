@@ -29,7 +29,7 @@
    </column>
    <column>
     <property name="text">
-     <string>New Column</string>
+     <string>Robot_ID</string>
     </property>
    </column>
    <column>
@@ -48,7 +48,7 @@
     <rect>
      <x>30</x>
      <y>420</y>
-     <width>401</width>
+     <width>311</width>
      <height>192</height>
     </rect>
    </property>
@@ -59,24 +59,19 @@
    </column>
    <column>
     <property name="text">
-     <string>OrderNo</string>
-    </property>
-   </column>
-   <column>
-    <property name="text">
      <string>RobotStatus</string>
     </property>
    </column>
    <column>
     <property name="text">
-     <string>Location</string>
+     <string>OrderNo</string>
     </property>
    </column>
   </widget>
   <widget class="QTableWidget" name="OrderStatus">
    <property name="geometry">
     <rect>
-     <x>450</x>
+     <x>370</x>
      <y>420</y>
      <width>501</width>
      <height>192</height>
@@ -119,6 +114,45 @@
    </property>
    <property name="text">
     <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="status_label">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>350</y>
+     <width>601</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>로봇 상태</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="orders_label">
+   <property name="geometry">
+    <rect>
+     <x>380</x>
+     <y>390</y>
+     <width>521</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>미처리 주문건</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="logs_label">
+   <property name="geometry">
+    <rect>
+     <x>750</x>
+     <y>0</y>
+     <width>601</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>로봇 로그</string>
    </property>
   </widget>
  </widget>

@@ -3,7 +3,10 @@ from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 import queue
+import socket
+import threading
 import math
+import json
 from ct_package.db_manager import DBManager
 from interface_package.srv import GoalArrival
 from interface_package.srv import RobotCall
@@ -11,45 +14,43 @@ from interface_package.srv import StoreAlarm
 from interface_package.srv import DeliveryBox
 from interface_package.srv import RobotDispatch
 
-DBHOST = '192.168.1.105'
+HOST_DB = '192.168.1.105'
+HOST = '192.168.1.105'
+PORT = 9077
 
 class RobotManager(Node):
-    def __init__(self,dbmanager):
+    def __init__(self,host,port,dbmanager):
         super().__init__('robot_manager_node')
-
         self.robots = {
                         "R-1": (0, 0),
                         "R-2": (0, 0),
                         "R-3": (0, 0)
                     }
-
+        self.host = host
+        self.port = port
+        self.client_list = []
         self.db_manager = dbmanager
-
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.order_queue = queue.Queue()
-
-        #서비스 Create
-        self.robot_dispatch_srv = self.create_service(RobotDispatch,'robot_dispatch',self.robot_dispatch_callback)
-
-        self.arrival_srv = self.create_service(GoalArrival,'goal_arrival',self.arrival_callback)
-
-        self.delivery_box_srv = self.create_service(DeliveryBox,'delivery_box',self.delivery_box_callback)
-
-        #서비스 구독
-        self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
-     
-        while not self.robotcall_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('RobotCall Service, waiting again...')
-        self.get_logger().info('RobotCall Service available.')
-
-        self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
-        
-        while not self.store_alarm_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('storeAlarm Service, waiting again...')
-        self.get_logger().info('storeAlarm Service available.')
-
-        #self.position_sub = self.create_subscription(Location, 'robot_position', self.position_callback, 10)
-
+        self.setup_services()
         self.get_logger().info('로봇 매니저 노드 시작됨')
+
+    def setup_services(self):
+        self.robot_dispatch_srv = self.create_service(RobotDispatch, 'robot_dispatch', self.robot_dispatch_callback)
+        self.arrival_srv = self.create_service(GoalArrival, 'goal_arrival', self.arrival_callback)
+        self.delivery_box_srv = self.create_service(DeliveryBox, 'delivery_box', self.delivery_box_callback)
+        #self.setup_service_clients()
+
+    def setup_service_clients(self):
+        self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
+        self.wait_for_service(self.robotcall_cli, 'RobotCall')
+        self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
+        self.wait_for_service(self.store_alarm_cli, 'StoreAlarm')
+
+    def wait_for_service(self, client, service_name):
+        while not client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'{service_name} 서비스, 다시 대기 중...')
+        self.get_logger().info(f'{service_name} 서비스 이용 가능.')
 
     def position_callback(self, msg):
         # 메시지에서 로봇의 ID, X, Y 좌표 추출
@@ -73,7 +74,7 @@ class RobotManager(Node):
             if status == 1:
                 self.get_logger().info('로봇이 매장에 도착했습니다.')
                 self.status_manage(order_num, "매장도착", work_robot, "매장도착", "매장도착")
-                self.notify_store(status, order_num)
+                self.notify_store("1", order_num)
             elif status == 2:
                 self.get_logger().info('로봇이 배달지에 도착했습니다.')
                 self.status_manage(order_num, "배달지도착", work_robot, "배달지도착", "배달지도착")
@@ -90,16 +91,14 @@ class RobotManager(Node):
 
         return res
 
-    
-    ##적재함 닫힘 서비스
     def delivery_box_callback(self, req, res):
         try:           
             if req.status == 0:
                 self.status_manage(req.order_id,"배달중",req.robot_id,"배달중","배달시작")
             elif req.status == 1:
                 self.status_manage(req.order_id,"완료",req.robot_id,"대기중","완료")
-                self.notify_store(req.status,req.order_id)
-                self.check_order()
+                self.notify_store("2",req.order_id)
+                self.check_order() 
             res.success = True
             res.robot_id = req.robot_id
         except Exception as e:
@@ -108,7 +107,6 @@ class RobotManager(Node):
             res.success = False
 
         return res
-
 
     def position_callback(self, msg):
         self.get_logger().info('로봇의 현재 위치: x=%f, y=%f, z=%f', msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
@@ -129,6 +127,7 @@ class RobotManager(Node):
         if future.result() is not None:
             response = future.result()
             self.robotcall_cli.get_logger().info(f'Result: {response.success}')
+            self.update_order_robotid(order_num,work_robot)
             return True
         else:
             self.robotcall_cli.get_logger().error('Exception while calling service: %r' % future.exception())
@@ -141,30 +140,47 @@ class RobotManager(Node):
 
             #일할 로봇을 뽑아옴
             work_robot = self.priority_robot(order_num)
-
+            
             if work_robot == None:
-                return res.success
+                self.status_send_tcp()
+                res.success = True
+                return res
             else:
                 store_id,kiosk_id,uid = self.get_order(order_num)
                 result = self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
                 if result:
                     self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
+                    self.notify_store("0",order_num)
                     self.order_queue.get()
-                    return res.success
+                    res.success = True
+                return res
         except Exception as e:
             self.get_logger().error(f"주문 정보를 검색하는 중 오류 발생: {e}")
             res.success = False
-            return res.success
+            return res
+
+    def update_order_robotid(self,order_num,robot_id):
+        try:
+            query = """
+                UPDATE Order
+                SET Robot_ID=%s
+                WHERE OrderNumber=%s
+                """
+            params = (robot_id,order_num)
+            self.execute_query(query, params)
+        except Exception as e:
+            # Log the error or handle it as needed
+            self.get_logger().error(f"An error occurred: {e}")
 
     def status_manage(self, order_num, order_status, robot_id, robot_status, log_status):
         try:
             query = """
                 UPDATE `Order` 
-                SET OrderStatus=%s 
+                SET OrderStatus=%s
                 WHERE OrderNumber=%s
                 """
-            params = (order_status, order_num)
-            self.execute_query(query, params)
+            params = (order_status,order_num)
+            self.db_manager.execute_query(query, params)
 
             query = """
                 UPDATE Robot 
@@ -172,7 +188,7 @@ class RobotManager(Node):
                 WHERE ID=%s
                 """
             params = (robot_status, robot_id)
-            self.execute_query(query, params)
+            self.db_manager.execute_query(query, params)
 
             query = """
                 INSERT INTO RobotLog
@@ -180,12 +196,12 @@ class RobotManager(Node):
                 VALUES (%s, NOW(), %s, %s)
                 """
             params = (robot_id, log_status, order_num)
-            self.execute_query(query, params)
+            self.db_manager.execute_query(query, params)
+            self.status_send_tcp()
         except Exception as e:
             # Log the error or handle it as needed
             self.get_logger().error(f"An error occurred: {e}")
-
-
+    
     def notify_store(self,status,order_num):
         req = StoreAlarm.Request()
         req.status = status
@@ -283,9 +299,82 @@ class RobotManager(Node):
                 work_robot = robot_id
         
         return work_robot        
+    
+    def get_robot_status(self):
+        query = """
+                SELECT A.ID, A.RobotStatus, B.OrderNumber
+                FROM Robot A
+                JOIN `Order` B ON A.ID =B.Robot_ID 
+                WHERE B.OrderStatus <> '완료'
+                """
+
+        return self.db_manager.fetch_query(query)
+
+    def get_robot_logs(self):
+        query = """
+        SELECT EventTime, Robot_ID, RobotStatus, Order_ID
+        FROM RobotLog rl
+        """
+        return self.db_manager.fetch_query(query)
+
+    def get_unprocessed_orders(self):
+        query = """
+                SELECT *
+                FROM `Order` 
+                WHERE Robot_ID IS NULL AND OrderStatus = '대기중'
+                """
+        return self.db_manager.fetch_query(query)
+
+    def status_send_tcp(self):
+
+        result1 = self.get_robot_status()
+        result2 = self.get_unprocessed_orders()
+        result3 = self.get_robot_logs() 
+
+        combined_results = {
+            'robot_status': result1,
+            'unprocessed_orders': result2,
+            'robot_logs': result3
+        }
+        
+
+        combined_results_json = json.dumps(combined_results)
+        
+
+        for client in self.client_list:
+            try:
+                client.sendall(combined_results_json.encode('utf-8'))
+            except Exception as e:
+                print(f"Failed to send data to a client: {e}")
+                self.clients.remove(client)
+
+    def start_server(self):
+        try:
+            self.server_socket.bind((self.host, self.port))
+            self.server_socket.listen()
+            print(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
+
+            while True:
+                conn, addr = self.server_socket.accept()
+                self.client_list.append(conn)
+                client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+                client_thread.start()
+                print(f"{addr}에 대한 스레드 시작됨")
+        except Exception as e:
+            print(f"서버 에러: {e}")
+        finally:
+            self.close_server()
+    def handle_client(self, conn, addr):
+        return
+    def close_server(self):
+        print("로봇매니저 서버 소켓 닫는 중")
+        for conn in self.client_list:
+            conn.close()
+        self.server_socket.close()
+        print("로봇매니저 서버 소켓 닫힘")
 
 def main(args=None):
-    db_manager = DBManager(DBHOST, 'potato', '1234', 'prj')
+    db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
     connection = db_manager.create_connection("StoreServer")
 
     if not connection:
@@ -295,11 +384,13 @@ def main(args=None):
     rclpy.init(args=args)
 
     #  노드 생성
-    robot_manager = RobotManager(db_manager)
-
+    robot_manager = RobotManager(HOST,PORT,db_manager)
+    server_thread = threading.Thread(target=robot_manager.start_server)
+    server_thread.start()
 
     rclpy.spin(robot_manager)
 
+    robot_manager.close_server()
     robot_manager.destroy_node()
     rclpy.shutdown()
 
