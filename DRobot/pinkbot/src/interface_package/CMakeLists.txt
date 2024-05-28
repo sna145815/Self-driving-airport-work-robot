@@ -18,8 +18,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LCDControl.srv"
   "srv/RFIDControl.srv"
   "srv/Tcp.srv"
-  "srv/OrderInfo.srv"
-  "srv/OrderTracking.srv"
 )
 
 if(BUILD_TESTING)
