@@ -14,10 +14,8 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-"srv/MotorControl.srv"
-"srv/LCDControl.srv"
-"srv/RFIDControl.srv"
-"srv/Tcp.srv"
+"srv/OrderTracking.srv"
+"srv/OrderInfo.srv"
 "srv/OrderCall.srv"
 "srv/GoalArrival.srv"
 "srv/RobotCall.srv"
@@ -27,7 +25,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 "msg/Navgoal.msg"
 "msg/Navfeedback.msg"
 "msg/Navresult.msg"
-  
+
 )
 
 if(BUILD_TESTING)
