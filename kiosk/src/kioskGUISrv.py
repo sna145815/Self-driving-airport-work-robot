@@ -14,8 +14,8 @@ from collections import Counter
 from tcp import TCPClient
 from Serial import SerialReceiver
 
-HOST = '192.168.1.101'
-PORT = 9057
+HOST = '192.168.1.100'
+PORT = 9052
 
 StoreDict = {
     "S-1": [
@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         recv = kwargs.pop('recv', None)
         super(MainWindow, self).__init__()
-        self.main_window = uic.loadUi('./ui/main.ui')
+        self.main_window = uic.loadUi('./data/main.ui')
         self.main_window.show()
         
         self.main_window.orderBtn.hide()
@@ -74,8 +74,10 @@ class MainWindow(QMainWindow):
             print(f"Failed to open serial port: {e}")
             sys.exit(1)
 
-        self.recv = SerialReceiver(self.conn)
-        self.recv.start()
+        # self.recv = SerialReceiver(self.conn)
+        # self.recv.start()
+        
+        self.start_serial_receiver()
             
         self.recv.detected.connect(self.detected)
         self.main_window.orderBtn.clicked.connect(self.go_store)
@@ -89,7 +91,13 @@ class MainWindow(QMainWindow):
         # TCP communication
         # self.tcp_server.close()
         
-
+    def start_serial_receiver(self):
+        if self.recv is None:
+            self.recv = SerialReceiver(self.conn)
+            self.recv.start()
+        else:
+            self.recv.resume()
+        
     def send_data(self):
         print("send_data called")
         cmd = "GD"
@@ -148,7 +156,7 @@ class StoreWindow(QMainWindow):
     def __init__(self, main_window, recv, tcp_server):
         super().__init__(main_window)
         self.main_window = main_window
-        self.store_window = uic.loadUi('./ui/store.ui', self)
+        self.store_window = uic.loadUi('./data/store.ui', self)
         self.tcp_server = tcp_server
         self.recv = recv
         
@@ -291,7 +299,7 @@ class CheckWindow(QMainWindow):
         self.uid = uid
         self.tcp_server = tcp_server
         
-        self.check_window = uic.loadUi('./ui/check.ui', self)
+        self.check_window = uic.loadUi('./data/check.ui', self)
         self.backBtn.clicked.connect(self.back)
         
         self.send_data()
@@ -314,7 +322,7 @@ class BasketWindow(QMainWindow):
         self.store_window = store_window
         self.tcp_server = tcp_server
         self.selected_menulist = selected_menulist
-        self.basket_window = uic.loadUi('./ui/basket.ui', self)
+        self.basket_window = uic.loadUi('./data/basket.ui', self)
         self.selected_store = selected_store
         
         self.backBtn.clicked.connect(self.back)
@@ -372,7 +380,7 @@ class PayWindow(QMainWindow):
         super().__init__(basket_window)
         self.basket_window = basket_window
         self.menulist = menulist
-        self.pay_window = uic.loadUi('./ui/pay.ui', self)
+        self.pay_window = uic.loadUi('./data/pay.ui', self)
                 
         self.tcp_server = tcp_server
         self.selected_store = selected_store
@@ -423,12 +431,12 @@ class PayWindow(QMainWindow):
         # TCP 서버를 통해 데이터를 보냅니다.
         self.tcp_server.send(cmd, data)
         QMessageBox.information(self.pay_window, "결제 완료", "결제가 완료되었습니다.", QMessageBox.Ok)
+        self.pay_window.close()
         # self.pay_window.textEdit_5.setText("결제가 완료되었습니다")
         # self.pay_window.textEdit_6.setText(" ")
         
     def go_main(self):
         self.recv.pause()
-        
         self.new_main = MainWindow(self, self.recv)
         self.pay_window.close()
         

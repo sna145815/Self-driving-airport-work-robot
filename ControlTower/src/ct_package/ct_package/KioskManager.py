@@ -2,17 +2,16 @@ import socket
 import threading
 import os
 import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-HOST = '192.168.1.101' # server(yjs) rosteam3 wifi
+HOST = '192.168.1.100' # server(yjs) rosteam3 wifi
 # HOST = '192.168.0.210' # server(yjs) ethernet
 HOST_DB = '192.168.1.105' # server(kjh)
-KIOSK_PORT = 9057
-
+KIOSK_PORT = 9052
 
 class KioskManager(Node):
     def __init__(self, host, port, dbmanager):
@@ -22,23 +21,9 @@ class KioskManager(Node):
         self.client_list = []
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.db_manager = dbmanager
-        # 서비스로 변경하자
-        # self.robotcall_publisher = self.create_publisher(String, 'orderCall', 10)
-        self.OrderCallServer = self.create_service(OrderCall, 'order_call', self.order_call_callback_service)
-        self.OderCallClient = self.create_client(OrderCall, 'order_call')
-
-    def order_call_callback_service(self, request, response):
-        try:
-            # 요청 내용을 로깅하거나 처리할 수 있습니다.
-            self.get_logger().info(f'Received request: IP = {request.ip}, Order No = {request.order_no}')
-
-        except Exception as e:
-            # 오류 발생 시 실패 응답
-            self.get_logger().error(f'Error processing request: {e}')
-            response.success = None
+        self.OrderCallClient = self.create_client(OrderCall, '/order_call')
         
-        return response
-
+    
     def handle_client(self, conn, addr):    # client 연결되면 실행되는 함수
         print(f"{addr}에서 연결됨")
         try:
@@ -54,7 +39,7 @@ class KioskManager(Node):
                             self.order_request(data, conn)
                         elif cmd == 'GD':
                             d_time = self.get_departure_time(data)
-                            msg = "GD,"+d_time
+                            msg = "GD,"+ d_time
                             self.client_send(msg, conn)
                         elif cmd == 'OI':
                             orders = self.order_select(data)
@@ -66,11 +51,9 @@ class KioskManager(Node):
                                 self.client_send("No orders found", conn)
                     except ConnectionResetError:
                         break
-        except:
-            conn.close()
-            pass
+        except Exception as e:
+            print(e)
         # finally:
-        #     #################################### 수정해야됨
         #     print(f"{addr} 연결 해제")
         #     if conn in self.client_list:
         #         self.clients.remove(conn)
@@ -85,8 +68,8 @@ class KioskManager(Node):
                 # 클라이언트 연결 정보
                 conn, addr = self.server_socket.accept()
                 self.client_list.append(conn)
-                client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
-                client_thread.start()
+                self.client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+                self.client_thread.start()
                 print(f"{addr}에 대한 스레드 시작됨")
         except Exception as e:
             print(f"서버 에러: {e}")
@@ -169,19 +152,24 @@ class KioskManager(Node):
             request = OrderCall.Request()
             request.ip = str(store_ip[0][0]) # yjs ethernet
             request.order_no = str(new_order_number)
-            future = self.OderCallClient.call_async(request)
-            rclpy.spin_until_future_complete(self, future)
-
-            if future.result() is not None:
+            
+            future = self.OrderCallClient.call_async(request)
+            print(future)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
+            
+            if future.result() is not None: 
                 self.get_logger().info(f'응답 받음: {future.result().success}')
             else:
                 self.get_logger().error('서비스 호출 실패')
                 
-            # rclpy.shutdown()
         except Exception as e:
             print(f"주문 요청 처리 중 오류: {e}")
             conn.sendall(f"주문 요청 처리 중 오류: {e}".encode())
-
+        # finally:
+        #     self.client_thread.join()
+        #     self.client_list = []
+            
+    
     def get_menu_id(self, menuname):
         query = "SELECT ID FROM Menu WHERE Name = %s;"
         result = self.db_manager.fetch_query(query, (menuname,))
@@ -209,6 +197,7 @@ class KioskManager(Node):
             target_client.sendall(msg.encode())
             print(target_client.getpeername()[0])
             print("전송"*10)
+            
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
     connection = db_manager.create_connection("KioskServer")
