@@ -3,7 +3,7 @@ import socket
 import json
 import rclpy
 from geometry_msgs.msg import PoseStamped
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem,QDialog
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen
 from PyQt5 import uic
 from PyQt5.QtCore import QThread, pyqtSignal, Qt,QTimer
@@ -19,6 +19,9 @@ class TCPClient:
         self.client_socket.connect((self.host, self.port))
         print(f"Connected to server at {self.host}:{self.port}")
     
+    def send_order_no(self, order_no):
+        self.client_socket.sendall(order_no.encode())
+
     def receive_data(self):
         try:
             while True:
@@ -48,6 +51,7 @@ from_class = uic.loadUiType("ControlGUI.ui")[0]
 # 데이터를 받는 스레드
 class ReceiveThread(QThread):
     data_received = pyqtSignal(dict)
+    log_received = pyqtSignal(dict)
 
     def __init__(self, client):
         super().__init__()
@@ -55,8 +59,26 @@ class ReceiveThread(QThread):
     
     def run(self):
         for data in self.client.receive_data():
-            print(data)
-            self.data_received.emit(data)
+            if 'robot_logs' in data:
+                self.log_received.emit(data)
+                print(data)
+            else:
+                self.data_received.emit(data)
+
+class Logmodal(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.ui = uic.loadUi("log.ui",self)
+        self.show()
+
+    def update_table_data(self, table_widget, data):
+        table_widget.setRowCount(0)  # 기존 데이터를 지웁니다.
+        table_widget.setRowCount(len(data))
+        for row, row_data in enumerate(data):
+            for col, value in enumerate(row_data):
+                item = QTableWidgetItem(str(value))
+                item.setTextAlignment(Qt.AlignCenter)
+                table_widget.setItem(row, col, item)
 
 # 메인 윈도우 클래스
 class MainWindow(QMainWindow, from_class):
@@ -81,9 +103,16 @@ class MainWindow(QMainWindow, from_class):
         # 데이터 수신 스레드 시작
         self.receive_thread = ReceiveThread(self.client)
         self.receive_thread.data_received.connect(self.update_status)
+        self.receive_thread.log_received.connect(self.get_robot_log)
         self.receive_thread.start()
 
-        #self.position = self.create_subscription(PoseStamped,'/amcl_pose',self.position_callback1,1)
+        self.CurOrder.itemClicked.connect(self.send_order_no)
+        self.FinishOrder.itemClicked.connect(self.send_order_no)
+        self.UnproOrder.itemClicked.connect(self.send_order_no)
+
+        # self.position1 = self.create_subscription(PoseStamped,'/amcl_pose_1',self.position_callback1,1)
+        # self.position2 = self.create_subscription(PoseStamped,'/amcl_pose_2',self.position_callback2,1)
+        # self.position3 = self.create_subscription(PoseStamped,'/amcl_pose_3',self.position_callback3,1)
 
         # 이미지 로드 및 QLabel에 설정
         self.pixmap = QPixmap('map.png')
@@ -111,12 +140,19 @@ class MainWindow(QMainWindow, from_class):
     def update_status(self, data):
         robot_status = data.get('robot_status')
         unprocessed_orders = data.get('unprocessed_orders')
-        robot_logs = data.get('robot_logs')
+        cur_orders = data.get('cur_orders')
+        finish_orders = data.get('finish_orders')
         
         # 테이블 위젯에 데이터 추가
         self.update_table_data(self.RobotStatus, robot_status)
-        self.update_table_data(self.OrderStatus, unprocessed_orders)
-        self.update_table_data(self.RobotLog, robot_logs)
+        self.update_table_data(self.UnproOrder, unprocessed_orders)
+        self.update_table_data(self.FinishOrder, finish_orders)
+        self.update_table_data(self.CurOrder, cur_orders)
+        
+    
+    def get_robot_log(self,data):
+        self.logmodal(data.get('robot_logs'))
+
 
     # 테이블 위젯에 데이터 추가하는 메서드
     def update_table_data(self, table_widget, data):
@@ -128,10 +164,36 @@ class MainWindow(QMainWindow, from_class):
                 item.setTextAlignment(Qt.AlignCenter)
                 table_widget.setItem(row, col, item)
 
+    def send_order_no(self, item):
+        row = item.row()
+        column = item.column()
+
+        # 클릭된 셀의 행과 열 인덱스 확인
+        if self.CurOrder == item.tableWidget() and self.CurOrder.horizontalHeaderItem(column).text() == "OrderNo":
+            order_no = self.CurOrder.item(row, column).text()
+        elif self.FinishOrder == item.tableWidget() and self.FinishOrder.horizontalHeaderItem(column).text() == "OrderNo":
+            order_no = self.FinishOrder.item(row, column).text()
+        elif self.UnproOrder == item.tableWidget() and self.UnproOrder.horizontalHeaderItem(column).text() == "OrderNo":
+            order_no = self.UnproOrder.item(row, column).text()
+
+        self.client.send_order_no(order_no)
+
+    def logmodal(self,data):
+        window_2 = Logmodal()
+        window_2.update_table_data(window_2.RobotLog,data)
+        window_2.exec_()
+
     def position_callback1(self, msg):
         position = msg.pose.pose.position
-        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-1"]=(position.x,position.y)
+
+    def position_callback2(self, msg):
+        position = msg.pose.pose.position
+        self.robots["R-2"]=(position.x,position.y)
+
+    def position_callback3(self, msg):
+        position = msg.pose.pose.position
+        self.robots["R-3"]=(position.x,position.y)   
 
     def update_robot_positions(self):
         new_positions = []
@@ -180,6 +242,6 @@ class MainWindow(QMainWindow, from_class):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow('192.168.1.105', 9079)  # 호스트 및 포트를 적절히 수정
+    window = MainWindow('192.168.1.105', 9025)  # 호스트 및 포트를 적절히 수정
     window.show()
     sys.exit(app.exec_())

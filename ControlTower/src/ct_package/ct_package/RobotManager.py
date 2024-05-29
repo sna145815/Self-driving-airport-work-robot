@@ -16,7 +16,7 @@ from interface_package.srv import RobotDispatch
 
 HOST_DB = '192.168.1.105'
 HOST = '192.168.1.105'
-PORT = 9079
+PORT = 9025
 
 class RobotManager(Node):
     def __init__(self,host,port,dbmanager):
@@ -45,9 +45,9 @@ class RobotManager(Node):
         #self.setup_topic()
 
     def setup_topic(self):
-        self.position1 = self.create_subscription(String,'/amcl_pose',self.position_callback1,1)
-        self.position2 = self.create_subscription(String,'/amcl_pose',self.position_callback2,1)
-        self.position3 = self.create_subscription(String,'/amcl_pose',self.position_callback3,1)
+        self.position1 = self.create_subscription(String,'/amcl_pose_1',self.position_callback1,1)
+        self.position2 = self.create_subscription(String,'/amcl_pose_2',self.position_callback2,1)
+        self.position3 = self.create_subscription(String,'/amcl_pose_3',self.position_callback3,1)
 
     def setup_service_clients(self):
         self.robotcall_cli = self.create_client(RobotCall, 'robot_call')
@@ -55,7 +55,6 @@ class RobotManager(Node):
         self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
         self.wait_for_service(self.store_alarm_cli, 'StoreAlarm')
         
-
     def wait_for_service(self, client, service_name):
         while not client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'{service_name} 서비스, 다시 대기 중...')
@@ -75,7 +74,6 @@ class RobotManager(Node):
         position = msg.pose.pose.position
         self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-3"]=(position.x,position.y)
-
 
     def arrival_callback(self, req, res):
         try:
@@ -327,12 +325,19 @@ class RobotManager(Node):
 
         return self.db_manager.fetch_query(query)
 
-    def get_robot_logs(self):
+    def get_robot_logs(self,order_no):
         query = """
-        SELECT EventTime, Robot_ID, RobotStatus, Order_ID
-        FROM RobotLog rl
-        """
-        return self.db_manager.fetch_query(query)
+                SELECT EventTime,Robot_ID,RobotStatus,Order_ID FROM RobotLog 
+                WHERE Order_ID  =%s
+                """
+        params = (order_no,)
+        result = self.db_manager.fetch_query(query,params)
+
+        json = {
+            'robot_logs': result
+        }
+
+        return json
 
     def get_unprocessed_orders(self):
         query = """
@@ -343,27 +348,11 @@ class RobotManager(Node):
         return self.db_manager.fetch_query(query)
 
     def status_send_tcp(self):
-
         result1 = self.get_robot_status()
         result2 = self.get_unprocessed_orders()
-        result3 = self.get_robot_logs() 
-
-        combined_results = {
-            'robot_status': result1,
-            'unprocessed_orders': result2,
-            'robot_logs': result3
-        }
-        
-
-        combined_results_json = json.dumps(combined_results)
-        
-
-        for client in self.client_list:
-            try:
-                client.sendall(combined_results_json.encode('utf-8'))
-            except Exception as e:
-                print(f"Failed to send data to a client: {e}")
-                self.clients.remove(client)
+        result3 = self.finish_order()
+        result4 = self.cur_order()
+        self.send_json(result1,result2,result3,result4)
 
     def start_server(self):
         try:
@@ -376,19 +365,88 @@ class RobotManager(Node):
                 self.client_list.append(conn)
                 client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
                 client_thread.start()
+                self.gui_init_send()
                 print(f"{addr}에 대한 스레드 시작됨")
         except Exception as e:
             print(f"서버 에러: {e}")
         finally:
             self.close_server()
+    
     def handle_client(self, conn, addr):
-        return
+        try:
+            with conn:
+                while True:
+                    try:
+                        data = conn.recv(1024).decode()
+                        if not data:
+                            break
+                        for client in self.client_list:
+                            try:
+                                client.sendall(json.dumps(self.get_robot_logs(data)).encode('utf-8'))
+                            except Exception as e:
+                                print(f"Failed to send data to a client: {e}")
+                                self.clients.remove(client)  
+                    except ConnectionResetError:
+                        break
+        except KeyboardInterrupt:
+            print("keyboard exit")
+            self.close_server()
+        finally:
+            self.close_server()
+
+    
     def close_server(self):
         print("로봇매니저 서버 소켓 닫는 중")
         for conn in self.client_list:
             conn.close()
         self.server_socket.close()
         print("로봇매니저 서버 소켓 닫힘")
+
+    def finish_order(self):
+        query = """
+                SELECT OrderNumber,OrderStatus,UID,Kiosk_ID,Robot_ID  
+                FROM `Order`
+                WHERE OrderStatus = '완료'
+                """
+        return self.db_manager.fetch_query(query)
+
+    def cur_order(self):
+        query = """
+                SELECT OrderNumber,OrderStatus,UID,Kiosk_ID,Store_ID,Robot_ID  
+                FROM `Order`
+                WHERE OrderStatus <> '완료' AND OrderStatus <> '대기중' 
+                """
+        return self.db_manager.fetch_query(query)
+
+    def gui_init_send(self):
+        query = """
+                SELECT ID, RobotStatus
+                FROM Robot 
+                """
+        result1 = self.db_manager.fetch_query(query)
+        result2 = self.get_unprocessed_orders()
+        result3 = self.finish_order()
+        result4 = self.cur_order()
+        print(result4)
+        self.send_json(result1,result2,result3,result4)
+        #result3 = self.get_robot_logs() 
+            
+    def send_json(self,result1,result2,result3,result4):
+        combined_results = {
+            'robot_status': result1,
+            'unprocessed_orders': result2,
+            'finish_orders': result3,
+            'cur_orders': result4
+        }
+        
+        combined_results_json = json.dumps(combined_results)
+        
+        for client in self.client_list:
+            try:
+                client.sendall(combined_results_json.encode('utf-8'))
+            except Exception as e:
+                print(f"Failed to send data to a client: {e}")
+                self.clients.remove(client)
 
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')

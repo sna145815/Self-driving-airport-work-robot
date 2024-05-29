@@ -6,51 +6,30 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1424</width>
+    <width>1616</width>
     <height>848</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <widget class="QTableWidget" name="RobotLog">
-   <property name="geometry">
-    <rect>
-     <x>1020</x>
-     <y>20</y>
-     <width>401</width>
-     <height>811</height>
-    </rect>
-   </property>
-   <column>
-    <property name="text">
-     <string>EventTime</string>
-    </property>
-   </column>
-   <column>
-    <property name="text">
-     <string>Robot_ID</string>
-    </property>
-   </column>
-   <column>
-    <property name="text">
-     <string>RobotStatus</string>
-    </property>
-   </column>
-   <column>
-    <property name="text">
-     <string>OrderID</string>
-    </property>
-   </column>
-  </widget>
   <widget class="QTableWidget" name="RobotStatus">
    <property name="geometry">
     <rect>
-     <x>30</x>
+     <x>50</x>
      <y>630</y>
      <width>311</width>
      <height>192</height>
     </rect>
+   </property>
+   <property name="editTriggers">
+    <set>QAbstractItemView::NoEditTriggers</set>
+   </property>
+   <property name="tabKeyNavigation">
+    <bool>false</bool>
+   </property>
+   <property name="dragDropOverwriteMode">
+    <bool>false</bool>
    </property>
    <column>
     <property name="text">
@@ -68,14 +47,17 @@
     </property>
    </column>
   </widget>
-  <widget class="QTableWidget" name="OrderStatus">
+  <widget class="QTableWidget" name="UnproOrder">
    <property name="geometry">
     <rect>
-     <x>440</x>
+     <x>470</x>
      <y>630</y>
      <width>501</width>
      <height>192</height>
     </rect>
+   </property>
+   <property name="editTriggers">
+    <set>QAbstractItemView::NoEditTriggers</set>
    </property>
    <column>
     <property name="text">
@@ -119,7 +101,7 @@
   <widget class="QLabel" name="status_label">
    <property name="geometry">
     <rect>
-     <x>30</x>
+     <x>50</x>
      <y>600</y>
      <width>71</width>
      <height>17</height>
@@ -132,7 +114,7 @@
   <widget class="QLabel" name="orders_label">
    <property name="geometry">
     <rect>
-     <x>450</x>
+     <x>470</x>
      <y>600</y>
      <width>101</width>
      <height>17</height>
@@ -142,17 +124,116 @@
     <string>미처리 주문건</string>
    </property>
   </widget>
-  <widget class="QLabel" name="logs_label">
+  <widget class="QTableWidget" name="FinishOrder">
    <property name="geometry">
     <rect>
-     <x>1020</x>
-     <y>0</y>
-     <width>71</width>
+     <x>1010</x>
+     <y>490</y>
+     <width>601</width>
+     <height>331</height>
+    </rect>
+   </property>
+   <property name="editTriggers">
+    <set>QAbstractItemView::NoEditTriggers</set>
+   </property>
+   <column>
+    <property name="text">
+     <string>OrderNo</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>OrderStatus</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>UID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>KioskID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>StoreID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>RobotID</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QLabel" name="logs_label_2">
+   <property name="geometry">
+    <rect>
+     <x>1010</x>
+     <y>460</y>
+     <width>91</width>
      <height>20</height>
     </rect>
    </property>
    <property name="text">
-    <string>로봇 로그</string>
+    <string>완료 주문건</string>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="CurOrder">
+   <property name="geometry">
+    <rect>
+     <x>1010</x>
+     <y>40</y>
+     <width>601</width>
+     <height>401</height>
+    </rect>
+   </property>
+   <property name="editTriggers">
+    <set>QAbstractItemView::NoEditTriggers</set>
+   </property>
+   <column>
+    <property name="text">
+     <string>OrderNo</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>OrderStatus</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>UID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>KioskID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>StoreID</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>RobotID</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QLabel" name="logs_label_3">
+   <property name="geometry">
+    <rect>
+     <x>1010</x>
+     <y>10</y>
+     <width>91</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>처리중 주문건</string>
    </property>
   </widget>
  </widget>
