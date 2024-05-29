@@ -9,48 +9,72 @@ class RobotControl(Node):
     def __init__(self):
         super().__init__("robot_control")
 
-        qos_profile = QoSProfile(
+        self.qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
             depth=10
         )
 
-        self.robot_call_service = self.create_service(RobotCall, "robot_call", self.robot_call_callback)
-        self.delivery_box_client = self.create_client(DeliveryBox,"delivery_box")
-        self.goal_arrival_client = self.create_client(GoalArrival, "goal_arrival")
-
         self.timer_period = 1.0
         self.timer = self.create_timer(self.timer_period, self.timer_callback)
-
-        self.order_clients = {
-            'R-1' : self.create_client(OrderInfo, "order_info_1"),
-            'R-2' : self.create_client(OrderInfo, "order_info_2")
-        }
-
-        self.goal_publishers = {
-            'R-1' : self.create_publisher(String, "/move_1",qos_profile),
-            'R-2' : self.create_publisher(String, "/move_2", qos_profile)
-        }
-
-        self.robots_status = {
-            "R-1" : self.create_subscription(Int16, "/robot_status_1", self.robot_status_callback_1, qos_profile),
-            "2" : self.create_subscription(Int16, "/robot_status_2", self.robot_status_callback_2, qos_profile)
-        }
-
-        self.order_tracking_services = {
-            'R-1' : self.create_service(OrderTracking, "order_tracking_1", self.order_tracking_callback_1),
-            'R-2' : self.create_service(OrderTracking, "order_tracking_2", self.order_tracking_callback_2)
-        }
-
+        
+        self.setup_rm()
+        self.setup_robots()
+        self.setup_pubs()
+        self.setup_subs()
 
         self.is_robot_active = {'R-1' : 0, 'R-2' : 0}
         self.current_robot_status = {'R-1' : 0, 'R-2' : 0}
+        self.previous_robot_status = {'R-1': 0, 'R-2': 0}
 
         self.current_order_status = {'R-1' : None, 'R-2' : None}
 
         self.goals = {}
         self.order_info = {}
         self.robot_info = {}
+
+    def setup_rm(self):
+        self.setup_rm_services()
+        self.setup_rm_clients()
+
+    def setup_robots(self):
+        self.setup_robot_services()
+        self.setup_robot_clients()
+
+    #connect with robotmanager
+    def setup_rm_services(self):
+        self.robot_call_service = self.create_service(RobotCall, "robot_call", self.robot_call_callback)
+
+    def setup_rm_clients(self):
+        self.delivery_box_client = self.create_client(DeliveryBox,"delivery_box")
+        self.goal_arrival_client = self.create_client(GoalArrival, "goal_arrival")
+
+    #connect with robots
+    def setup_robot_services(self):
+        self.order_tracking_services = {
+            'R-1' : self.create_service(OrderTracking, "order_tracking_1", self.order_tracking_callback_1),
+            'R-2' : self.create_service(OrderTracking, "order_tracking_2", self.order_tracking_callback_2)
+        }
+
+    def setup_robot_clients(self):
+        self.order_clients = {
+            'R-1' : self.create_client(OrderInfo, "order_info_1"),
+            'R-2' : self.create_client(OrderInfo, "order_info_2")
+        }
+
+    #publishers and subscriptions
+    def setup_pubs(self):
+        self.goal_publishers = {
+            'R-1' : self.create_publisher(String, "/move_1",self.qos_profile),
+            'R-2' : self.create_publisher(String, "/move_2", self.qos_profile)
+        }
+
+    def setup_subs(self):
+        self.robots_status = {
+            "R-1" : self.create_subscription(Int16, "/robot_status_1", self.robot_status_callback_1, self.qos_profile),
+            "R-2" : self.create_subscription(Int16, "/robot_status_2", self.robot_status_callback_2, self.qos_profile)
+        }
+
 
     def update_robot_info(self, robot_id, order_id, store_id, kiosk_id, uid):
         self.robot_info[robot_id] = {
@@ -132,25 +156,33 @@ class RobotControl(Node):
                 ## 에러 처리 해야할 듯
 
     def robot_status_callback_1(self, msg):
-        return self.robot_status_callback('1', msg)
+        return self.robot_status_callback('R-1', msg)
 
     def robot_status_callback_2(self, msg):
-        return self.robot_status_callback('2', msg)
+        return self.robot_status_callback('R-2', msg)
 
     # def robot_status_callback_3(self, msg):
     #     return self.robot_status_callback(3, msg)
     
     def robot_status_callback(self, robot_id, msg):
         status = msg.data
+        self.previous_robot_status[robot_id] = self.current_robot_status[robot_id]
         # self.get_logger().info(f"robot {robot_id} status : {status}")
         self.current_robot_status[robot_id] = status
 
+        if self.previous_robot_status[robot_id] != self.current_robot_status[robot_id]:
+            if status == 2:
+                self.request_goal_arrival(robot_id, self.robot_info[robot_id]["order_id"], 1)
+            elif status == 4:
+                self.request_goal_arrival(robot_id, self.robot_info[robot_id]["order_id"], 2)
+            elif status == 0:
+                self.request_goal_arrival(robot_id, self.robot_info[robot_id]["order_id"], 3)
 
     def order_tracking_callback_1(self, request, response):
-        return self.order_tracking_callback('1', request, response)
+        return self.order_tracking_callback('R-1', request, response)
     
     def order_tracking_callback_2(self, request, response):
-        return self.order_tracking_callback('2', request, response)
+        return self.order_tracking_callback('R-2', request, response)
 
     def order_tracking_callback(self, robot_id, request, response):
         status = request.status
@@ -160,14 +192,13 @@ class RobotControl(Node):
             self.get_logger().info(f"status received: {status} for robot_id: {robot_id}")
             if status == "DS":
                 self.current_order_status[robot_id] = status
-                self.request_delivery_box(robot_id, self.robot_info[robot_id]["order_id"], 1)
+                self.request_delivery_box(robot_id, self.robot_info[robot_id]["order_id"], 0)
                 response.success = True
             elif status == "DF":
                 self.current_order_status[robot_id] = status
-                self.request_delivery_box(robot_id, self.robot_info[robot_id]["order_id"], 2)
+                self.request_delivery_box(robot_id, self.robot_info[robot_id]["order_id"], 1)
                 
                 self.is_robot_active[robot_id] = 0
-
                 
                 print(self.is_robot_active)
                 print(self.current_robot_status)
@@ -185,7 +216,6 @@ class RobotControl(Node):
             response.success = False
 
         return response
-
 
     def request_order(self, robot_id, order_id, uid):
         self.get_logger().info(f"send to {robot_id} module")
@@ -207,9 +237,8 @@ class RobotControl(Node):
         return response_order
 
     def request_delivery_box(self, robot_id, order_id, status):
-        # 1 : 매장 도착
-        # 2 : 키오스크 도착
-        # 3 : 충전장소 복귀 완료
+        # 0 : Delivery Start
+        # 1 : Delivery Finish
         self.get_logger().info(f"send robot{robot_id} robot status : {status} to RobotManager")
         delivery_box_request = DeliveryBox.Request()
         delivery_box_request.status = status
@@ -229,6 +258,9 @@ class RobotControl(Node):
             self.get_logger().info(f"delivery box call failed for {robot_id} : {e}")
 
     def request_goal_arrival(self, robot_id, order_id, status):
+        # 1 : 매장 도착
+        # 2 : 키오스크 도착
+        # 3 : 충전장소 복귀 완료
         self.get_logger().info(f"send robot{robot_id} order status : {status} to RobotManager")
         goal_arrival_request = GoalArrival.Request()
         goal_arrival_request.status = status
