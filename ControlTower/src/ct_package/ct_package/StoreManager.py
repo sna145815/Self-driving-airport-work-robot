@@ -22,8 +22,6 @@ class StoreManager(Node):
     def __init__(self, host, port, db_manager):
         super().__init__('store_server_node')
 
-        self.dbConnName = "StoreServer"
-
         self.host = host
         self.port = port
         self.client_list = []
@@ -79,7 +77,7 @@ class StoreManager(Node):
                         WHERE o.OrderNumber = %s
                     """
                 
-                result = self.db_manager.fetch_query(query, self.dbConnName, [orderNo])
+                result = self.db_manager.fetch_query(query, [orderNo])
 
                 if result:
                     print("result : ", result)
@@ -140,7 +138,7 @@ class StoreManager(Node):
                         WHERE A.OrderNumber = %s;
                     """
 
-                    result = self.db_manager.fetch_query(query, self.dbConnName, [order_number])
+                    result = self.db_manager.fetch_query(query, [order_number])
                     # print("result : ", result)
 
                     if result:
@@ -248,7 +246,7 @@ class StoreManager(Node):
                         """
 
         params = (param,)
-        self.db_manager.execute_query(query, self.dbConnName,params)
+        self.db_manager.execute_query(query, params)
 
 
     def store_status(self, s_id, status):
@@ -269,7 +267,7 @@ class StoreManager(Node):
                 msg = "SS"+"/"+s_id+"/"+"0"
                 
             params = (s_id,)
-            self.db_manager.execute_query(query, self.dbConnName, params)
+            self.db_manager.execute_query(query, params)
                                        
             self.k_send(msg)
             
@@ -325,7 +323,7 @@ class StoreManager(Node):
                 SELECT Kiosk_ip 
                 FROM Kiosk;
             """
-        result = self.db_manager.fetch_query(query, self.dbConnName)
+        result = self.db_manager.fetch_query(query)
 
         if result:
             for kip in result:
