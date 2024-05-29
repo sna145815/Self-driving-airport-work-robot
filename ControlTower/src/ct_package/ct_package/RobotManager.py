@@ -16,7 +16,7 @@ from interface_package.srv import RobotDispatch
 
 HOST_DB = '192.168.1.105'
 HOST = '192.168.1.105'
-PORT = 9077
+PORT = 9079
 
 class RobotManager(Node):
     def __init__(self,host,port,dbmanager):
@@ -39,28 +39,43 @@ class RobotManager(Node):
         self.robot_dispatch_srv = self.create_service(RobotDispatch, 'robot_dispatch', self.robot_dispatch_callback)
         self.arrival_srv = self.create_service(GoalArrival, 'goal_arrival', self.arrival_callback)
         self.delivery_box_srv = self.create_service(DeliveryBox, 'delivery_box', self.delivery_box_callback)
+        self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
+        self.position = self.create_subscription(PoseStamped,'/amcl_pose',self.position_callback1,10)
         #self.setup_service_clients()
+        #self.setup_topic()
+
+    def setup_topic(self):
+        self.position1 = self.create_subscription(String,'/amcl_pose',self.position_callback1,1)
+        self.position2 = self.create_subscription(String,'/amcl_pose',self.position_callback2,1)
+        self.position3 = self.create_subscription(String,'/amcl_pose',self.position_callback3,1)
 
     def setup_service_clients(self):
-        self.robotcall_cli = self.create_client(RobotCall, 'robotCall')
-        self.wait_for_service(self.robotcall_cli, 'RobotCall')
+        self.robotcall_cli = self.create_client(RobotCall, 'robot_call')
+        self.wait_for_service(self.robotcall_cli, 'robot_call')
         self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
         self.wait_for_service(self.store_alarm_cli, 'StoreAlarm')
+        
 
     def wait_for_service(self, client, service_name):
         while not client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info(f'{service_name} 서비스, 다시 대기 중...')
         self.get_logger().info(f'{service_name} 서비스 이용 가능.')
 
-    def position_callback(self, msg):
-        # 메시지에서 로봇의 ID, X, Y 좌표 추출
-        robot_id = msg.robot_id
-        x = msg.x
-        y = msg.y
-        
-        # 전역 변수 ROBOTS 업데이트
-        if robot_id in self.ROBOTS:
-            self.ROBOTS[robot_id] = (x, y)
+    def position_callback1(self, msg):
+        position = msg.pose.pose.position
+        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        self.robots["R-1"]=(position.x,position.y)
+    
+    def position_callback2(self, msg):
+        position = msg.pose.pose.position
+        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        self.robots["R-2"]=(position.x,position.y)
+    
+    def position_callback3(self, msg):
+        position = msg.pose.pose.position
+        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        self.robots["R-3"]=(position.x,position.y)
+
 
     def arrival_callback(self, req, res):
         try:
@@ -74,7 +89,7 @@ class RobotManager(Node):
             if status == 1:
                 self.get_logger().info('로봇이 매장에 도착했습니다.')
                 self.status_manage(order_num, "매장도착", work_robot, "매장도착", "매장도착")
-                self.notify_store("1", order_num)
+                self.notify_store(1, order_num)
             elif status == 2:
                 self.get_logger().info('로봇이 배달지에 도착했습니다.')
                 self.status_manage(order_num, "배달지도착", work_robot, "배달지도착", "배달지도착")
@@ -97,7 +112,7 @@ class RobotManager(Node):
                 self.status_manage(req.order_id,"배달중",req.robot_id,"배달중","배달시작")
             elif req.status == 1:
                 self.status_manage(req.order_id,"완료",req.robot_id,"대기중","완료")
-                self.notify_store("2",req.order_id)
+                self.notify_store(2,req.order_id)
                 self.check_order() 
             res.success = True
             res.robot_id = req.robot_id
@@ -107,9 +122,6 @@ class RobotManager(Node):
             res.success = False
 
         return res
-
-    def position_callback(self, msg):
-        self.get_logger().info('로봇의 현재 위치: x=%f, y=%f, z=%f', msg.pose.position.x, msg.pose.position.y, msg.pose.position.z)
 
     def robot_send_goal(self,order_num,store_id,kiosk_id,uid,work_robot):
         # 로봇에게 발행
@@ -148,9 +160,10 @@ class RobotManager(Node):
             else:
                 store_id,kiosk_id,uid = self.get_order(order_num)
                 result = self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
+
                 if result:
                     self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
-                    self.notify_store("0",order_num)
+                    self.notify_store(0,order_num)
                     self.order_queue.get()
                     res.success = True
                 return res
@@ -176,10 +189,10 @@ class RobotManager(Node):
         try:
             query = """
                 UPDATE `Order` 
-                SET OrderStatus=%s
+                SET OrderStatus=%s,Robot_ID=%s
                 WHERE OrderNumber=%s
                 """
-            params = (order_status,order_num)
+            params = (order_status,robot_id,order_num)
             self.db_manager.execute_query(query, params)
 
             query = """
@@ -205,7 +218,7 @@ class RobotManager(Node):
     def notify_store(self,status,order_num):
         req = StoreAlarm.Request()
         req.status = status
-        req.order_id = order_num
+        req.order_id = int(order_num)
         
         future = self.store_alarm_cli.call_async(req)
         
@@ -213,9 +226,9 @@ class RobotManager(Node):
 
         if future.result() is not None:
             response = future.result()
-            self.robotcall_cli.get_logger().info(f'Store Alarm: {response.success}')
+            self.get_logger().info(f'Store Alarm: {response.success}')
         else:
-            self.robotcall_cli.get_logger().error('Exception while calling Store Alarm service: %r' % future.exception())
+            self.get_logger().error('Exception while calling Store Alarm service: %r' % future.exception())
 
     def priority_robot(self,order_num):
         result = self.robot_status()
@@ -283,7 +296,11 @@ class RobotManager(Node):
 
         return self.db_manager.fetch_query(query)
 
-    def calculate_distance(r_x, r_y, s_x, s_y):
+    def calculate_distance(self, r_x, r_y, s_x, s_y):
+        s_x = int(s_x)
+        s_y = int(s_y)
+        r_x = int(r_x)
+        r_y = int(r_y)
         return math.sqrt((s_x - r_x)**2 + (s_y - r_y)**2)
 
     def find_closest_robot(self,order_num):
@@ -292,7 +309,7 @@ class RobotManager(Node):
         s_x,s_y = self.get_store_location(order_num)
         
         for robot_id, (r_x, r_y) in self.robots.items():
-            distance = self.calculate_distance(r_x, r_y,s_x,s_y)
+            distance = self.calculate_distance(r_x, r_y, s_x, s_y)
 
             if distance < min_distance:
                 min_distance = distance
