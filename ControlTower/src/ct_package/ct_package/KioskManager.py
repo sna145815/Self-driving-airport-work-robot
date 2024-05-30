@@ -8,14 +8,17 @@ from rclpy.node import Node
 from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
-HOST = '192.168.1.100' # server(yjs) rosteam3 wifi
+HOST = '192.168.1.101' # server(yjs) rosteam3 wifi
 # HOST = '192.168.0.210' # server(yjs) ethernet
 HOST_DB = '192.168.1.105' # server(kjh)
-KIOSK_PORT = 9052
+KIOSK_PORT = 9059
 
 class KioskManager(Node):
     def __init__(self, host, port, dbmanager):
         super().__init__('kiosk_manager_node')
+        
+        self.dbConnName = "KioskServer"
+        
         self.host = host
         self.port = port
         self.client_list = []
@@ -92,7 +95,7 @@ class KioskManager(Node):
                 WHERE A.UID = %s;
             """
             params = (uid,)
-            result = self.db_manager.fetch_query(query, params)
+            result = self.db_manager.fetch_query(query, self.dbConnName, params)
             if result:
                 departure_time = result[0][0]
                 return departure_time
@@ -113,14 +116,14 @@ class KioskManager(Node):
                 LIMIT 1;
             """
             # 새로 입력된 orderNo 추출
-            result = self.db_manager.fetch_query(order_number_query)
+            result = self.db_manager.fetch_query(order_number_query, self.dbConnName)
             new_order_number = result[0][0] if result else 1  # 첫 번째 주문의 경우
             # new_order_number = result if result else 1  # 첫 번째 주문의 경우
             insert_order_query = """
                 INSERT INTO `Order` (OrderNumber, OrderStatus, UID, Kiosk_ID, Store_ID)
-                VALUES (%s, '대기중', %s, %s,%s);
+                VALUES (%s, '대기중', %s, %s,%s); 
             """
-            self.db_manager.execute_query(insert_order_query, (new_order_number, data_list[0], data_list[1],data_list[2]))
+            self.db_manager.execute_query(insert_order_query,  self.dbConnName, (new_order_number, data_list[0], data_list[1],data_list[2]))
             menu_info = data_list[3:-1]  # 메뉴 정보 리스트
             cnt = int(data_list[-1])
             for i in range(cnt):
@@ -132,7 +135,7 @@ class KioskManager(Node):
                     VALUES (%s, %s, %s);
                 """
                 params = (new_order_number, menu_id, menu_cnt)
-                self.db_manager.execute_query(insert_menu_query, params)
+                self.db_manager.execute_query(insert_menu_query, self.dbConnName, params)
             menu_name = data_list[3].split('/')[0]
             query = """
                 SELECT A.Store_ip
@@ -140,7 +143,7 @@ class KioskManager(Node):
                 JOIN Menu B ON A.ID = B.Store_ID
                 WHERE B.Name = %s;
             """
-            store_ip = self.db_manager.fetch_query(query, (menu_name,))
+            store_ip = self.db_manager.fetch_query(query, self.dbConnName,(menu_name,))
 
             ## Store 쪽으로 토픽 던지기
             # msg = String()
@@ -172,7 +175,7 @@ class KioskManager(Node):
     
     def get_menu_id(self, menuname):
         query = "SELECT ID FROM Menu WHERE Name = %s;"
-        result = self.db_manager.fetch_query(query, (menuname,))
+        result = self.db_manager.fetch_query(query, self.dbConnName, (menuname,))
         if result:
             return result[0][0]
         else:
@@ -186,7 +189,7 @@ class KioskManager(Node):
                 WHERE UID = %s AND OrderStatus <> '완료';
             """
             params = (uid,)
-            result = self.db_manager.fetch_query(query, params)
+            result = self.db_manager.fetch_query(query, self.dbConnName, params)
             return result
         except Exception as e:
             print(f"UID {uid}에 대한 주문 선택 중 오류: {e}")
