@@ -16,7 +16,7 @@ from interface_package.srv import RobotDispatch
 
 HOST_DB = '192.168.0.8'
 HOST = '192.168.0.8'
-PORT = 9034
+PORT = 9035
 
 class RobotManager(Node):
     def __init__(self,host,port,dbmanager):
@@ -24,11 +24,19 @@ class RobotManager(Node):
         self.robots = {
                         "R-1": (0, 0),
                         "R-2": (0, 0),
-                        "R-3": (0, 0)
+                        "R-3": (49, 49)
                     }
+        
+        self.work_state = {
+                        "R-1": 0,
+                        "R-2": 1,
+                        "R-3": 0
+                    }
+        
         self.host = host
         self.port = port
         self.client_list = []
+        
         self.db_manager = dbmanager
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_thread = threading.Thread(target=self.start_server)
@@ -110,6 +118,7 @@ class RobotManager(Node):
             elif req.status == 1:
                 self.status_manage(req.order_id,"완료",req.robot_id,"대기중","완료")
                 self.notify_store(2,req.order_id)
+                self.work_state[req.robot_id] = 0
                 self.check_order() 
             res.success = True
             res.robot_id = req.robot_id
@@ -147,6 +156,7 @@ class RobotManager(Node):
                 res.success = True
                 return res
             else:
+                self.work_state[work_robot] = 1
                 store_id,kiosk_id,uid = self.get_order(order_num)
                 self.robot_send_goal(order_num,store_id,kiosk_id,uid,work_robot)
                 self.status_manage(order_num,"매장이동중",work_robot,"매장이동중","매장이동중")
@@ -219,7 +229,8 @@ class RobotManager(Node):
         elif len(result) == 1:
             return result[0][0]
         else:
-            return self.find_closest_robot(order_num)
+             self.get_logger().info('대기중 로봇 여러개 가까운 로봇을 찾습니다.')
+             return self.find_closest_robot(order_num)
 
     def get_order(self, order_num):
         query = """
@@ -252,8 +263,8 @@ class RobotManager(Node):
 
         if result:
             if len(result) > 0:
-                X = result[0][0]  # X는 첫 번째 열의 값
-                Y = result[0][1]  # Y는 두 번째 열의 값
+                X = str(result[0][0])  # X 값을 문자열로 변환
+                Y = str(result[0][1])  # Y 값을 문자열로 변환
                 return X, Y
             
         return None, None  # 만약 결과가 없으면 None을 반환
@@ -277,33 +288,37 @@ class RobotManager(Node):
 
         return self.db_manager.fetch_query(query)
 
-    def calculate_distance(self, r_x, r_y, s_x, s_y):
-        s_x = int(s_x)
-        s_y = int(s_y)
-        r_x = int(r_x)
-        r_y = int(r_y)
-        return math.sqrt((s_x - r_x)**2 + (s_y - r_y)**2)
-
     def find_closest_robot(self,order_num):
         min_distance = float('inf')
         work_robot = None
         s_x,s_y = self.get_store_location(order_num)
-        
         for robot_id, (r_x, r_y) in self.robots.items():
-            distance = self.calculate_distance(r_x, r_y, s_x, s_y)
+            if self.work_state[robot_id] == 1:
+                continue
+
+            distance = math.sqrt((float(s_x) - float(r_x))**2 + (float(s_y) - float(r_y))**2)
 
             if distance < min_distance:
                 min_distance = distance
                 work_robot = robot_id
-        
+
+        self.get_logger().info("선택된 로봇ID : " + str(work_robot))
         return work_robot        
     
     def get_robot_status(self):
         query = """
-                SELECT A.ID, A.RobotStatus, B.OrderNumber
-                FROM Robot A
-                JOIN `Order` B ON A.ID =B.Robot_ID 
-                WHERE B.OrderStatus <> '완료'
+                SELECT 
+                    A.ID, 
+                    A.RobotStatus,
+                    (SELECT 
+                        CASE 
+                            WHEN B.Robot_ID IS NULL THEN NULL 
+                            ELSE B.OrderNumber 
+                        END AS OrderNumber
+                    FROM `Order` B
+                    WHERE B.OrderStatus <> '완료' AND (B.Robot_ID = A.ID OR B.Robot_ID IS NULL)
+                    LIMIT 1) AS OrderNumber
+                FROM Robot A;
                 """
 
         return self.db_manager.fetch_query(query)
