@@ -17,7 +17,7 @@ class Robot():
         self.uid = ""
     
     def __str__(self):
-        return f"Robot(id={self.robot_id}, store_id={self.store_id}, kiosk_id={self.kiosk_id})"
+        return f"Robot(id = {self.robot_id}, store_id = {self.store_id}, kiosk_id = {self.kiosk_id}, uid = {self.uid})"
 
     def change_status(self, status):
         if self.is_active != status:
@@ -65,8 +65,8 @@ class RobotControl(Node):
         self.setup_robots()
         self.setup_pubs()
         self.setup_subs()
-        self.wait_for_services()
-        
+        # self.wait_for_services()
+
         self.robot_1 = Robot('R-1')
         self.robot_2 = Robot('R-2')
         self.robot_3 = Robot('R-3')
@@ -88,8 +88,6 @@ class RobotControl(Node):
         self.delivery_box_client = self.create_client(DeliveryBox, "delivery_box")
         self.goal_arrival_client = self.create_client(GoalArrival, "goal_arrival")
 
-
-
     #connect with robots
     def setup_robot_services(self):
         self.order_tracking_services = {
@@ -104,9 +102,6 @@ class RobotControl(Node):
             'R-2': self.create_client(OrderInfo, "order_info_2"),
             'R-3': self.create_client(OrderInfo, "order_info_3")
         }
-
-
-            
 
     #publishers and subscriptions
     def setup_pubs(self):
@@ -137,7 +132,7 @@ class RobotControl(Node):
         self.get_logger().info('All services are now connected')
 
 
-    #주문 끝나고 같은 주문이 또 들어가는 버그가 있음
+
     def robot_call_callback(self, request, response):
 
         robot_id = request.robot_id
@@ -145,19 +140,34 @@ class RobotControl(Node):
         store_id = request.store_id
         kiosk_id = request.kiosk_id
         uid = request.uid
-        self.get_logger().info("Received Robot Call")
-        self.get_logger().info(f"robot_id : {robot_id}, order_id : {order_id}, uid : {uid}")
 
-        if self.robot_1.is_active and self.robot_2.is_active:
+        if self.robot_1.is_active and self.robot_2.is_active and self.robot_3.is_active:
             self.get_logger().error("All robot is active")
             response.success = False
         else:
+            self.get_logger().info("Received Robot Call")
+            self.get_logger().info(f"robot_id : {robot_id}, order_id : {order_id}, uid : {uid}")
             if robot_id == "R-1":
-                selected_robot = self.robot_1
+                if self.robot_1.is_active:
+                    self.get_logger().info("robot_1 is active")
+                    response.success = False
+                    return response
+                else:
+                    selected_robot = self.robot_1
             elif robot_id == "R-2":
-                selected_robot = self.robot_2
+                if self.robot_2.is_active:
+                    self.get_logger().info("robot_2 is active")
+                    response.success = False
+                    return response
+                else:
+                    selected_robot = self.robot_2
             elif robot_id == "R-3":
-                selected_robot = self.robot_3
+                if self.robot_3.is_active:
+                    self.get_logger().info("robot_3 is active")
+                    response.success = False
+                    return response
+                else:
+                    selected_robot = self.robot_3
             else:
                 self.get_logger().error(f"Unknown robot_id: {robot_id}")
                 response.success = False
@@ -244,10 +254,8 @@ class RobotControl(Node):
     def order_tracking_callback_3(self, request, response):
         return self.order_tracking_callback(self.robot_3, request, response)
 
-    def order_tracking_callback(self, robot, request, response):
+    def order_tracking_callback(self, robot, request, response): # order_id 정보 안받아도 되는거 같음
         status = request.status
-        order_id = request.order_id
-        self.get_logger().info(robot.order_id)
         try:
             self.get_logger().info(f"status received: {status} for robot_id: {robot.robot_id}")
             if status == "DS":
@@ -269,21 +277,13 @@ class RobotControl(Node):
         return response
 
     def request_order(self, robot_id, order_id, uid):
-        self.get_logger().info(f"send to {robot_id} module")
+        self.get_logger().info(f"send order to {robot_id}")
         order_request = OrderInfo.Request()
         order_request.uid = uid
         order_request.order_id = order_id
         future = self.order_clients[robot_id].call_async(order_request)
-        # rp.spin_until_future_complete(self, future, timeout_sec=2.0)
         future.add_done_callback(self.response_order_callback(robot_id))
-        # try:
-        #     response = future.result()
-        #     if response.success:
-        #         self.get_logger().info(f"Received order response from {robot_id} : {response.success}")
-        #     else: ##추가적으로 응답을 하는 로직이 필요할 수 도??
-        #         self.get_logger().info('order request failed')
-        # except Exception as e:
-        #     self.get_logger().info(f"Service call failed for {robot_id} : {e}")
+
         
 
     def response_order_callback(self, robot_id):
@@ -307,7 +307,6 @@ class RobotControl(Node):
         delivery_box_request.order_id = order_id
 
         future = self.delivery_box_client.call_async(delivery_box_request)
-        # rp.spin_until_future_complete(self, future, timeout_sec=2.0)
         future.add_done_callback(self.response_delivery_box)
 
     # (Received from robots and send to RM)'s response
@@ -330,7 +329,6 @@ class RobotControl(Node):
         goal_arrival_request.order_id = order_id
 
         future = self.goal_arrival_client.call_async(goal_arrival_request)
-        # rp.spin_until_future_complete(self, future, timeout_sec=2.0)
         future.add_done_callback(self.response_goal_arrival)
 
     def response_goal_arrival(self, future):
