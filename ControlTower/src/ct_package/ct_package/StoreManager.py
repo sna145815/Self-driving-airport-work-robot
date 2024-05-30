@@ -13,9 +13,10 @@ from interface_package.srv import RobotDispatch
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
-# HOST = '192.168.0.210' # server(yjs) ethernet
-HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
+# HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
+HOST = '192.168.0.69' # server(yjs) ethernet
+# HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
+HOST_DB = '192.168.0.8' # DB manager kjh rosteam3 wifi
 STORE_PORT = 9023
 
 class StoreManager(Node):
@@ -49,25 +50,16 @@ class StoreManager(Node):
     #     rclpy.spin_until_future_complete(self, future)   
     #     pass
     
+    # 로봇이 매장에 도착했다는 알람을 받는 ros service
     def store_callback_service(self, request, response):    # status, orderid
+        print("store_callback_start!!!")
         print('status : ', request.status)
         print('orderId : ', request.order_id)
 
         try:
             if request.order_id:
                 response.success = True
-
-                # if request.status == 0:
-                #     status = "배차완료"
-                # elif request.status == 1:
-                #     status = "매장도착"
-                # elif request.status == 2:
-                #     status = "배달완료"
-                # else:
-                #     print("wrong request!!!!!")
-                
                 robotStatus = str(request.status)
-
                 orderNo = str(request.order_id)
 
                 query = """
@@ -86,11 +78,7 @@ class StoreManager(Node):
 
                     msg = f"DS,{orderNo},{robotStatus},{robotID}"
 
-                    # menus = [f"{row[1]}/{row[2]}" for row in result]
-                    # cnt = len(menus)
-                    # msg = f"OS,{order_number},{cnt},{','.join(menus)}"
                     store_ip = next((client for client in self.client_list if client.getpeername()[0] == ip), None)
-                    print(store_ip)
                     print(msg)
 
                     if store_ip:
@@ -102,21 +90,21 @@ class StoreManager(Node):
             else:
                 response.success = False
 
+            print("--------------------------")
+
         except Exception as e:
             print("store_callback Error : ", e)
         except KeyboardInterrupt:
             pass
 
-
         return response
 
 
     def order_call_callback_service(self, request, response):
+        print("order_call_callback_start!!!")
         try:
             if request.ip:
                 response.success = True
-                print("true@@@@@@@@@@@@@@@@@@@@@@@@")
-                # self.db_manager.create_connection("StoreServer")
                 # 받은 메시지를 '/'를 기준으로 분할하여 파싱
                 try:
                     # data_list = msg.data.split('/')
@@ -160,10 +148,10 @@ class StoreManager(Node):
                         print(f"Error fetching order details: {e}")
                         return None
             else:
-                print("false@@@@@@@@@@@@@@@@@@@@@@@@")
                 response.success = False
             
             print(response)
+            print("--------------------------")
             
             return response
         except Exception as e:
@@ -195,6 +183,7 @@ class StoreManager(Node):
                         elif cmd == 'MS':
                             self.menu_status(data_list[0],data_list[1])
                         data_list.clear()
+                        print("-------------------------")
                     except ConnectionResetError:
                         break
         except KeyboardInterrupt:
@@ -283,14 +272,21 @@ class StoreManager(Node):
         print("robot call")
 
         self.req_robotDispatch.order_id = order_number
-        future = self.robotDispatch.call_async(self.req_robotDispatch)
+        # future = self.robotDispatch.call_async(self.req_robotDispatch)
+        self.robotDispatch.call_async(self.req_robotDispatch)
         # rclpy.spin_until_future_complete(self, future)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
+        #rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
 
-        if future.result() is not None:
-            self.get_logger().info(f'응답 받음: {future.result().success}')
-        else:
-            self.get_logger().error('서비스 호출 실패')
+
+        # if future.result() is not None:
+        #     self.get_logger().info(f'응답 받음: {future.result().success}')
+        # else:
+        #     self.get_logger().error('서비스 호출 실패')
+        
+        # if future.done():
+        #     future.cancel()
+        #     del future
+        
         
     def menu_status(self, m_id, status):
         try:
@@ -334,6 +330,8 @@ class StoreManager(Node):
                     target_client.sendall(msg.encode())
                     
 
+
+# def get_local_ip():
 
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
