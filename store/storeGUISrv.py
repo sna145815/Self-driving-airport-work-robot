@@ -1,6 +1,6 @@
 import cv2
 from PyQt5.QtCore import QThread, pyqtSignal, Qt,QTimer
-from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication,QTableWidgetItem,QMessageBox, QHeaderView
+from PyQt5.QtWidgets import QMainWindow, QWidget, QApplication, QTableWidgetItem,QMessageBox, QHeaderView
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5 import uic,QtWidgets
 import socket
@@ -13,15 +13,15 @@ import time
 import threading
 # import numpy as np
 
-# HOST = "192.168.0.210" # yjs ethernet
-HOST = "192.168.1.102" # yjs rosteam3 wifi
+HOST = "192.168.0.69" # yjs ethernet
+# HOST = "192.168.1.102" # yjs rosteam3 wifi
 # HOST = "192.168.0.30" # jinhong
 PORT = 9023
 
 from_class1 = uic.loadUiType("selectStore.ui")[0]
 from_class2 = uic.loadUiType("store.ui")[0]
 
-menuDic = {
+menuDic_origin = {
     'S-1': {
         'cheeseBurger': 5,
         'bigMac': 150,
@@ -46,6 +46,34 @@ menuDic = {
         'beefKimbab': 200,
         'porkKimbab': 200,
         'shrimpKimbab': 170
+    },
+}
+
+menuDic = {
+    'S-1': {
+        'cheeseBurger': 5,
+        'bigMac': 5,
+        'beefSnackWrap': 5,
+        'McNuggets': 5,
+        'coffee': 5,
+        'coke': 5,
+        'sprite': 5
+    },
+    'S-2': {
+        'americano': 5,
+        'CaramelMacchiato': 5,
+        'Cappuccino': 5,
+        'coldBrew': 5,
+        'GHBT': 5,
+        'frappuccino': 5
+    },
+    'S-3': {
+        'kimbab': 5,
+        'tunaKimbab': 5,
+        'cheeseKimbab': 5,
+        'beefKimbab': 5,
+        'porkKimbab': 5,
+        'shrimpKimbab': 5
     },
 }
 
@@ -93,6 +121,10 @@ class tcpRecvThread(QThread):
             while self.running:
                 receiveBuf = self.recvSocket.recv(1024)
                 self.response.emit(receiveBuf.decode())
+        except Exception as e:
+            print("tcpRecvThread ERROR!! : ", e)
+        except KeyboardInterrupt:
+            self.recvSocket.close()
         finally:
             self.recvSocket.close()
     
@@ -161,7 +193,6 @@ class SecondScreen(QWidget, from_class2):
         self.menuCbCM6.clicked.connect(self.menuCbCM6_clicked)
 
         self.menuList = {}
-
     
     def tcpInit(self):
         while True:
@@ -171,8 +202,8 @@ class SecondScreen(QWidget, from_class2):
                 break
             except Exception as e:
                 print(f"error code : {e}")
-                print("Retrying in 3 seconds...")
-                time.sleep(3) # 3초후 재시도
+                print("Retrying in 1 seconds...")
+                time.sleep(1) # 1초후 재시도
             except KeyboardInterrupt:
                 print("User interrupted the connection attempt.")
                 return
@@ -185,6 +216,7 @@ class SecondScreen(QWidget, from_class2):
             self.tcpRecvThread.wait()
 
         # self.tcpRecvThread.client_socket.close()
+        self.client_socket.close()
 
         print("Terminate server!")
         sys.exit(0)
@@ -265,62 +297,24 @@ class SecondScreen(QWidget, from_class2):
         self.hide()
         
     def reqRobot(self, orderNo):
-        
         cmd = "DR"
-        # storeID = "S-1"
-        # orderNo = "A1"
-
-    
         message = cmd + "," + self.storeId + "," + str(orderNo)
 
         self.client_socket.sendall(message.encode())
-
         print("hello Store")
 
-        # try:
-        #     print("")
-        # except Exception as e:
-        #     print("Error tcp send to GUI : ", e)
-        # finally:
-        #     self.tcpStop()
 
     def reqRobot2(self):
-        
         cmd = "DR"
         storeId = "S-1"
-        orderNo = 32
-        # storeID = "S-1"
-        # orderNo = "A1"
-
-    
+        orderNo = 10
         message = cmd + "," + storeId + "," + str(orderNo)
 
         self.client_socket.sendall(message.encode())
-
         print("hello Store")
 
-        # try:
-        #     print("")
-        # except Exception as e:
-        #     print("Error tcp send to GUI : ", e)
-        # finally:
-        #     self.tcpStop()
-
     def ctrlMenuStatus(self, menuId, menuStatus):
-        # toggle
-        # self.menuToggle = not self.menuToggle
-
-        # if (self.menuToggle == 1):
-        #     menuStatus = "1"
-        # else:
-        #     menuStatus = "0"
-
-        # print("menu ON/OFF")
-
         cmd = "MS"
-        # menuId = "M-1"
-        
-
         message = cmd + "," + str(menuId) + "," + str(menuStatus)
 
         self.client_socket.sendall(message.encode())
@@ -339,16 +333,18 @@ class SecondScreen(QWidget, from_class2):
             # print("store OFF")
 
         cmd = "SS"
-
         message = cmd + "," + self.storeId + "," + str(storeStatus)
-
         self.client_socket.sendall(message.encode())
 
     def addList(self, orderNo, orderStatus, totalMenuCnt, DRobotStatus, DRobotNo):
         row = self.tableWidget.rowCount()
         self.tableWidget.insertRow(row)
 
-        self.tableWidget.setItem(row, 0, QTableWidgetItem(orderNo))
+        int_QTableWidgetItem = QTableWidgetItem()
+        int_QTableWidgetItem.setData(Qt.DisplayRole, int(orderNo))
+
+        # self.tableWidget.setItem(row, 0, QTableWidgetItem(orderNo))
+        self.tableWidget.setItem(row, 0, int_QTableWidgetItem)
         self.tableWidget.item(row, 0).setTextAlignment(Qt.AlignCenter)
         self.tableWidget.setItem(row, 1, QTableWidgetItem(orderStatus))
         self.tableWidget.item(row, 1).setTextAlignment(Qt.AlignCenter)
@@ -449,7 +445,7 @@ class SecondScreen(QWidget, from_class2):
             msg_box.addButton(QMessageBox.Ok)
             msg_box.exec_()     
    
-    def receiveOrder(self, result):
+    def receiveOrder_origin(self, result):
         cmd = result.split(',')[0]
         orderNo = result.split(',')[1]
 
@@ -509,7 +505,7 @@ class SecondScreen(QWidget, from_class2):
             if DRobotStatus == '0':
                 DRobotStatusText = "배차완료"
             elif DRobotStatus == '1':
-                DRobotStatusText = "로봇대기중" #로봇 번호로 바꾸고 싶다
+                DRobotStatusText = "매장도착" #로봇 번호로 바꾸고 싶다
             elif DRobotStatus == '2':
                 DRobotStatusText = "배달완료"
             else:   # wrong command
@@ -523,6 +519,71 @@ class SecondScreen(QWidget, from_class2):
             print("wrong command")
 
         print("recv complete")
+
+        # self.lineEdit.setText(result)
+
+    def receiveOrder(self, recv):
+        result = recv.split(',')
+
+        if len(result)>1:
+            cmd = result[0]
+            orderNo = result[1]
+            DRobotStatusText = ""
+
+            if cmd == 'OS':
+                orderStatus = "주문접수"
+                DRobotStatusText = "배차 대기중" # 주문접수되고 아직 배차 안된 상태
+                menuCnt = result[2]    # 메뉴의 종류 수량
+                DRobotNo = "-"
+
+                menu = []
+                cnt = 0
+
+                for i in range(int(menuCnt)):
+                    tmp = result[i+3]
+                    menu.append(tmp)
+                    cnt = cnt + int(tmp.split('/')[1])
+                    
+                    self.lineEdit.setText(cmd + "," + orderNo + "," + menuCnt + "," + menu[i])
+                
+                totalMenuCnt = cnt
+                # print(totalMenuCnt)
+                self.menuList[orderNo] = menu
+                # print(self.menuList)
+                
+                self.addList(orderNo, orderStatus, totalMenuCnt, DRobotStatusText, DRobotNo)
+            elif cmd == 'DS': # 매장 알람
+                # self.orderNo
+                DRobotNo = result[3]
+
+                # 요청한 주문번호가 있는 행의 번호 찾기
+                rowCnt = self.tableWidget.rowCount()
+                for row in range(rowCnt):
+                    item = self.tableWidget.item(row, 0)
+                    if item is not None and item.text() == orderNo:
+                        break
+
+                # 명령어 해석
+                DRobotStatus = result[2]
+                if DRobotStatus == '0':
+                    DRobotStatusText = "배차완료"
+                elif DRobotStatus == '1':
+                    DRobotStatusText = "매장도착"
+                elif DRobotStatus == '2':
+                    DRobotStatusText = "배달완료"
+                else:   # wrong command
+                    pass
+
+                self.updateList(row, 3, DRobotStatusText)
+                self.updateList(row, 4, DRobotNo)
+
+                self.lineEdit.setText(cmd + "," + orderNo + "," + DRobotStatus + "," + DRobotNo)            
+            else:
+                print("wrong command")
+
+            print("TCP receive success")
+        else:
+            print("Received TCP data is too short")
 
         # self.lineEdit.setText(result)
 

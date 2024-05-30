@@ -7,7 +7,7 @@ def generate_launch_description():
             Node(
                 namespace= '',
                 package= 'ct_package',
-                executable= 'robot_control',
+                executable= 'drobot_control',
                 output= 'screen'
             )
         ]

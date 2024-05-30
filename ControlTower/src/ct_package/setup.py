@@ -26,7 +26,7 @@ setup(
         'console_scripts': [
             'control_tower = ct_package.control_tower:main',
             'service_client = ct_package.service_client:main',
-            'robot_control = ct_package.robot_control:main',
+            'drobot_control = ct_package.drobot_control:main',
             'kiosk_manager = ct_package.KioskManager:main',
             'store_manager = ct_package.StoreManager:main',
             'robot_manager = ct_package.RobotManager:main',
