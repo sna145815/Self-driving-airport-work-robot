@@ -39,7 +39,6 @@ class Robot():
         self.store_id = ""
         self.kiosk_id = ""
         self.uid = ""
-    
     def __str__(self):
         return f"Robot(id = {self.robot_id}, store_id = {self.store_id}, kiosk_id = {self.kiosk_id}, uid = {self.uid})"
 
