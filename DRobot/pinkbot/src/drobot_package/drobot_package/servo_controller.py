@@ -8,6 +8,7 @@
 # servo_controller.py 파일 내용
 
 import RPi.GPIO as GPIO
+from time import sleep
 
 class ServoController:
     def __init__(self, servo_pin=12):
@@ -23,15 +24,22 @@ class ServoController:
     def set_servo_pos(self, degree):
         if degree > 180:
             degree = 180
+        elif degree < 0:
+            degree = 0
+        GPIO.setup(self.servoPin,GPIO.OUT)
         duty = self.SERVO_MIN_DUTY + (degree * (self.SERVO_MAX_DUTY - self.SERVO_MIN_DUTY) / 180.0)
-        print("Degree: {} to {}(Duty)".format(degree, duty))
+        print("Degree: {:.3f} to {:.3f}(Duty)".format(degree, duty))
         self.servo.ChangeDutyCycle(duty)
+        sleep(0.3)
+        GPIO.setup(self.servoPin,GPIO.IN)
 
     def move_to_zero(self):
-        self.set_servo_pos(10)
+        self.set_servo_pos(0)
+        sleep(1.7)
 
     def move_to_max(self):
-        self.set_servo_pos(170)
+        self.set_servo_pos(150)
+        sleep(1.7)
 
     def cleanup(self):
         self.servo.stop()
