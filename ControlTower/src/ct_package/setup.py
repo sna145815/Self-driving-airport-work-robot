@@ -30,6 +30,7 @@ setup(
             'kiosk_manager = ct_package.KioskManager:main',
             'store_manager = ct_package.StoreManager:main',
             'robot_manager = ct_package.RobotManager:main',
+            'pathPlan = ct_package.pathPlan:main',
         ],
     },
 )
