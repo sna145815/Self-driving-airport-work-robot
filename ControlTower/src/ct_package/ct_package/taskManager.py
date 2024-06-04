@@ -31,6 +31,8 @@ from ct_package.pathDict import wayList
 from ct_package.drobot_control import RobotControl
 from rclpy.executors import MultiThreadedExecutor
 
+from interface_package.srv import RobotArrival
+
 
 
 class robotTaskManager(Node):
@@ -40,6 +42,8 @@ class robotTaskManager(Node):
 
         self.timer_period = 3.0
         self.timer = self.create_timer(self.timer_period, self.robotStatusCheck_timer_callback)
+
+        self.robotArrivalSigServer = self.create_service(RobotArrival, 'robotArrival', self.robotArrival_callback_service)
 
         # self.basicNaviInit()
 
@@ -113,6 +117,23 @@ class robotTaskManager(Node):
         self.movingFlg1 = 0
         self.movingFlg2 = 0
         self.movingFlg3 = 0
+
+    def robotArrival_callback_service(self, request, response):
+        try:
+            if request.arrival == 1:
+                self.movingWayFlg1 = 1
+                response.success = True
+            elif request.arrival == 2:
+                self.movingWayFlg2 = 2
+                response.success = True
+            elif request.arrival == 3:
+                self.movingWayFlg3 = 3
+                response.success = True
+            else:
+                response.success = False
+        except Exception as e:
+            print("robotArrival service Error : ",e)
+        
 
     def robotStatusCheck_timer_callback(self):
         for robot in self.robotControl.robots:
@@ -322,152 +343,153 @@ class robotTaskManager(Node):
         if robotId == "R-1":
             step = self.step1
             shortGoal = self.shortGoal1
-            movingWayFlg = self.robotControl.movingWayFlg1
+            movingWayFlg = self.movingWayFlg1
         elif robotId == "R-2":
             step = self.step2
             shortGoal = self.shortGoal2
-            movingWayFlg = self.robotControl.movingWayFlg2
+            movingWayFlg = self.movingWayFlg2
         elif robotId == "R-3":
             step = self.step3
             shortGoal = self.shortGoal3
-            movingWayFlg = self.robotControl.movingWayFlg3
+            movingWayFlg = self.movingWayFlg3
         else:
             print("wrong robotId")
 
 
-        if movingWayFlg==0:
+        if movingWayFlg==1:
             # 실행
-            pass
-        elif movingWayFlg==1:
-            print("waypoint 이동중")
-            pass
-        
-        msg = Float32MultiArray()
+            movingWayFlg = 0
+            msg = Int16()
 
-        pathNum = len(pathDict[startPoint][endPoint])
-        print("pathNum : ", pathNum)
-        noWay = 0
+            pathNum = len(pathDict[startPoint][endPoint])
+            print("pathNum : ", pathNum)
+            noWay = 0
 
-        for i in range(pathNum): # 1~3개 정도
-            # 다음 노드를 찾을때, 현재 노드 기준으로 검색할 필요가 있어
-            # 이전 step의 값이 현재 이전 shortGoal인 path에서 찾기 
-            
-            pathLength = len(pathDict[startPoint][endPoint][i])
-            if pathDict[startPoint][endPoint][i][0] is None:
-                noWay = 1
-
-            if (step < 1) and (noWay == 0):
-                # path로 첫 진입,
-                # 이전 위치의 점유 플래그 reset 해줘야됨
-                self.goalNode[startPoint] = 0
-
-                nodeNum = pathDict[startPoint][endPoint][i][step]
+            for i in range(pathNum): # 1~3개 정도
+                # 다음 노드를 찾을때, 현재 노드 기준으로 검색할 필요가 있어
+                # 이전 step의 값이 현재 이전 shortGoal인 path에서 찾기 
                 
-                # node 플래그 숫자로 변환
-                num = self.transformNodeNum(nodeNum)
+                pathLength = len(pathDict[startPoint][endPoint][i])
+                if pathDict[startPoint][endPoint][i][0] is None:
+                    noWay = 1
 
-                if self.node[num] == 0:
-                    step = step + 1
-                    # shortGoal = wayList[nodeNum]
-                    print(num)
-                    self.node[num] = 1 # 현재 점령한 노드 플래그값 set
+                if (step < 1) and (noWay == 0):
+                    # path로 첫 진입,
+                    # 이전 위치의 점유 플래그 reset 해줘야됨
+                    self.goalNode[startPoint] = 0
 
-                    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                    # drobot_Motor 한테 self.shortGoal 보내기
-                    msg.data = nodeNum # int
-                    self.shortGoalPub[robotId].publish(msg)
-                    # self.moveNavi(self.shortGoal)
-                    # server에 도착했다고 응답 보내기, or 이동중 플래그 값 reset하기
-                    break
-                else:
-                    # 대기
-                    pass
-            elif (step < pathLength) and (noWay == 0):    # 아직 way point인지 확인
-                # 이전 스텝의 값이랑 shortGoal 비교 (엉뚱한 path의 step으로 이동하면 안되니까)
-                lastNodeName = pathDict[startPoint][endPoint][i][step-1]
-                # node 플래그 숫자로 변환
-                lastNum = self.transformNodeNum(lastNodeName)
-                self.node[lastNum] = 0 # 이전 노드 점령 플래그 reset
-                if shortGoal == wayList[lastNodeName]:
-                    # 이길이 맞아 keep going
-                    # step에 따라 검토
                     nodeNum = pathDict[startPoint][endPoint][i][step]
+                    
                     # node 플래그 숫자로 변환
                     num = self.transformNodeNum(nodeNum)
 
                     if self.node[num] == 0:
                         step = step + 1
-                        # shortGoal = wayList[nodeName]
+                        # shortGoal = wayList[nodeNum]
                         print(num)
                         self.node[num] = 1 # 현재 점령한 노드 플래그값 set
 
                         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                         # drobot_Motor 한테 self.shortGoal 보내기
-                        msg.data = nodeNum
+                        msg.data = nodeNum # int
                         self.shortGoalPub[robotId].publish(msg)
                         # self.moveNavi(self.shortGoal)
                         # server에 도착했다고 응답 보내기, or 이동중 플래그 값 reset하기
                         break
                     else:
-                        # 이동가능한 다른 노드를 찾아봐
-                        print("이 노드는 점령중입니다 : ", num+1)
-                else:
-                    # 가던 길이 아니야, 원래 가던 path 찾아
-                    pass
-            elif (noWay == 1) or (step == pathLength):   # 최종 목적지 node로 이동할 차례
-                print(step)
-                # shortGoal = xyDict[endPoint]
-                nodeNum = endPoint_Dict[endPoint]
-                if noWay == 1:
-                    # K or S 의 node 점령 플래그 reset
-                    self.goalNode[startPoint] = 0
-                else:
-                    # 이전 way node 점령 플래그 reset
+                        # 대기
+                        pass
+                elif (step < pathLength) and (noWay == 0):    # 아직 way point인지 확인
+                    # 이전 스텝의 값이랑 shortGoal 비교 (엉뚱한 path의 step으로 이동하면 안되니까)
                     lastNodeName = pathDict[startPoint][endPoint][i][step-1]
                     # node 플래그 숫자로 변환
                     lastNum = self.transformNodeNum(lastNodeName)
-                    # 이전 노드 점령 플래그 reset
-                    self.node[lastNum] = 0 
+                    self.node[lastNum] = 0 # 이전 노드 점령 플래그 reset
+                    if shortGoal == wayList[lastNodeName]:
+                        # 이길이 맞아 keep going
+                        # step에 따라 검토
+                        nodeNum = pathDict[startPoint][endPoint][i][step]
+                        # node 플래그 숫자로 변환
+                        num = self.transformNodeNum(nodeNum)
 
-                # print(shortGoal)
+                        if self.node[num] == 0:
+                            step = step + 1
+                            # shortGoal = wayList[nodeName]
+                            print(num)
+                            self.node[num] = 1 # 현재 점령한 노드 플래그값 set
 
-                # self.moveNavi(self.shortGoal)
-                # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-                # drobot_Motor 한테 self.shortGoal 보내기
-                msg.data = nodeNum
-                self.shortGoalPub[robotId].publish(msg)
+                            # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                            # drobot_Motor 한테 self.shortGoal 보내기
+                            msg.data = nodeNum
+                            self.shortGoalPub[robotId].publish(msg)
+                            # self.moveNavi(self.shortGoal)
+                            # server에 도착했다고 응답 보내기, or 이동중 플래그 값 reset하기
+                            break
+                        else:
+                            # 이동가능한 다른 노드를 찾아봐
+                            print("이 노드는 점령중입니다 : ", num+1)
+                    else:
+                        # 가던 길이 아니야, 원래 가던 path 찾아
+                        pass
+                elif (noWay == 1) or (step == pathLength):   # 최종 목적지 node로 이동할 차례
+                    print(step)
+                    # shortGoal = xyDict[endPoint]
+                    nodeNum = endPoint_Dict[endPoint]
+                    if noWay == 1:
+                        # K or S 의 node 점령 플래그 reset
+                        self.goalNode[startPoint] = 0
+                    else:
+                        # 이전 way node 점령 플래그 reset
+                        lastNodeName = pathDict[startPoint][endPoint][i][step-1]
+                        # node 플래그 숫자로 변환
+                        lastNum = self.transformNodeNum(lastNodeName)
+                        # 이전 노드 점령 플래그 reset
+                        self.node[lastNum] = 0 
+
+                    # print(shortGoal)
+
+                    # self.moveNavi(self.shortGoal)
+                    # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                    # drobot_Motor 한테 self.shortGoal 보내기
+                    msg.data = nodeNum
+                    self.shortGoalPub[robotId].publish(msg)
+
+                    if robotId == "R-1":
+                        self.currentXY1 = endPoint
+                        self.movingFlg1 = 0  # 임무할당 해제
+                        self.step1 = 0
+                        print(self.currentXY1)
+                    elif robotId == "R-2":
+                        self.currentXY2 = endPoint
+                        self.movingFlg2 = 0  # 임무할당 해제
+                        self.step2 = 0
+                        print(self.currentXY2)
+                    elif robotId == "R-3":
+                        self.currentXY3 = endPoint
+                        self.movingFlg3 = 0  # 임무할당 해제
+                        self.step3 = 0
+                        print(self.currentXY3)
+                    else:
+                        print("wrong robotId")
+
+                    break
 
                 if robotId == "R-1":
-                    self.currentXY1 = endPoint
-                    self.movingFlg1 = 0  # 임무할당 해제
-                    self.step1 = 0
-                    print(self.currentXY1)
+                    self.step1 = step
+                    self.shortGoal1 = nodeNum
+                    self.movingWayFlg1 = movingWayFlg
                 elif robotId == "R-2":
-                    self.currentXY2 = endPoint
-                    self.movingFlg2 = 0  # 임무할당 해제
-                    self.step2 = 0
-                    print(self.currentXY2)
+                    self.step2 = step
+                    self.shortGoal2 = nodeNum
+                    self.movingWayFlg2 = movingWayFlg
                 elif robotId == "R-3":
-                    self.currentXY3 = endPoint
-                    self.movingFlg3 = 0  # 임무할당 해제
-                    self.step3 = 0
-                    print(self.currentXY3)
+                    self.step3 = step
+                    self.shortGoal3 = nodeNum
+                    self.movingWayFlg3 = movingWayFlg
                 else:
                     print("wrong robotId")
-
-                break
-
-            if robotId == "R-1":
-                self.step1 = step
-                self.shortGoal1 = nodeNum
-            elif robotId == "R-2":
-                self.step2 = step
-                self.shortGoal2 = nodeNum
-            elif robotId == "R-3":
-                self.step3 = step
-                self.shortGoal3 = nodeNum
-            else:
-                print("wrong robotId")
+        elif movingWayFlg==0:
+            print("waypoint 이동중")
 
 
     def transformNodeNum(self, nodeName):

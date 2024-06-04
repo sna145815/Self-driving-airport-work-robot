@@ -22,6 +22,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 "srv/DeliveryBox.srv"
 "srv/StoreAlarm.srv"
 "srv/RobotDispatch.srv"
+"srv/RobotArrival.srv"
 "msg/Navgoal.msg"
 "msg/Navfeedback.msg"
 "msg/Navresult.msg"
