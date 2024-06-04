@@ -39,6 +39,7 @@ class Robot():
         self.store_id = ""
         self.kiosk_id = ""
         self.uid = ""
+        self.endPoint = None
     def __str__(self):
         return f"Robot(id = {self.robot_id}, store_id = {self.store_id}, kiosk_id = {self.kiosk_id}, uid = {self.uid})"
 
@@ -63,6 +64,12 @@ class Robot():
         self.kiosk_id = ""
         self.uid = ""
 
+    def returning(self):
+        self.is_active = False
+        self.current_order_status = OrderStatus.DELIVERY_YET
+        self.store_id = ""
+        self.kiosk_id = ""
+        self.uid = ""
 
 class StatusError(Exception):
     # Exception raised for errors in the robot status.
