@@ -28,7 +28,7 @@ from ct_package.pathDict import wayList
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # RobotControl Node import
-from ct_package.drobot_control import RobotControl
+from ct_package.drobot_control import RobotControl, RobotStatus, OrderStatus
 from rclpy.executors import MultiThreadedExecutor
 
 from interface_package.srv import RobotArrival
@@ -107,7 +107,9 @@ class robotTaskManager(Node):
         self.endGoal2 = None
         self.endGoal3 = None
 
-
+        self.shortGoal1 = None
+        self.shortGoal2 = None
+        self.shortGoal3 = None
 
         # path를 이동할때, 몇번째 단계인가
         self.step1 = 0
@@ -140,7 +142,7 @@ class robotTaskManager(Node):
             msg = String()
             if robot.is_active:
                 robot_id = robot.robot_id
-                if robot.current_status == self.robotControl.RobotStatus.HOME or robot.current_status == self.robotControl.RobotStatus.AT_HOME:
+                if robot.current_status == RobotStatus.HOME or robot.current_status == RobotStatus.AT_HOME:
                     # to 배차모드
                     self.get_logger().info(f"{robot_id} go to {robot.store_id}")
                     # msg.data = robot.store_id
@@ -148,7 +150,7 @@ class robotTaskManager(Node):
 
                     cmd = 0
                     endPoint = robot.store_id   # ex) S-1
-                elif robot.current_status == self.robotControl.RobotStatus.AT_STORE and robot.current_order_status == self.robotControl.OrderStatus.DELIVERY_START:
+                elif robot.current_status == RobotStatus.AT_STORE and robot.current_order_status == OrderStatus.DELIVERY_START:
                     # to 배달모드
                     self.get_logger().info(f"{robot_id} go to {robot.kiosk_id}")
                     # msg.data = robot.kiosk_id
@@ -156,7 +158,7 @@ class robotTaskManager(Node):
 
                     cmd = 1
                     endPoint = robot.kiosk_id   # ex) K-1
-                elif robot.current_status == self.robotControl.RobotStatus.AT_KIOSK and robot.current_order_status == self.robotControl.OrderStatus.DELIVERY_FINISH:
+                elif robot.current_status == RobotStatus.AT_KIOSK and robot.current_order_status == OrderStatus.DELIVERY_FINISH:
                     # to 복귀모드
                     self.get_logger().info(f"go to robot {robot_id} home")
                     # msg.data = f"H-{robot_id[2]}" # 추가 처리 필요
