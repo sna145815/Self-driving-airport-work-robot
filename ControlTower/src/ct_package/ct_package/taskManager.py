@@ -37,7 +37,7 @@ from interface_package.srv import RobotArrival
 
 class robotTaskManager(Node):
     def __init__(self, robotControlNode):
-        super().__init__()
+        super().__init__('taskManager')
         self.robotControl = robotControlNode
 
         self.timer_period = 3.0
