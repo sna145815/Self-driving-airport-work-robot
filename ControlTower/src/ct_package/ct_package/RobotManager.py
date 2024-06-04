@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from std_msgs.msg import String
 import queue
 import socket
@@ -14,15 +14,15 @@ from interface_package.srv import StoreAlarm
 from interface_package.srv import DeliveryBox
 from interface_package.srv import RobotDispatch
 
-HOST_DB = '192.168.0.8'
-HOST = '192.168.0.8'
-PORT = 9035
+HOST_DB = '192.168.0.15'
+HOST = '192.168.0.15'
+PORT = 9036
 
 class RobotManager(Node):
     def __init__(self,host,port,dbmanager):
         super().__init__('robot_manager_node')
         self.robots = {
-                        "R-1": (0, 0),
+                        "R-1": (0.044833358377218246, 2.5029311180114746),
                         "R-2": (0, 0),
                         "R-3": (49, 49)
                     }
@@ -50,12 +50,12 @@ class RobotManager(Node):
         self.arrival_srv = self.create_service(GoalArrival, 'goal_arrival', self.arrival_callback)
         self.delivery_box_srv = self.create_service(DeliveryBox, 'delivery_box', self.delivery_box_callback)
         self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
-        self.setup_service_clients()
-        #self.setup_topic()
+        #self.setup_service_clients()
+        self.setup_topic()
 
     def setup_topic(self):
-        self.position1 = self.create_subscription(String,'/amcl_pose_1',self.position_callback1,1)
-        self.position2 = self.create_subscription(String,'/amcl_pose_2',self.position_callback2,1)
+        self.position1 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose',self.position_callback1,10)
+        #self.position2 = self.create_subscription(String,'/amcl_pose_2',self.position_callback2,1)
         #self.position3 = self.create_subscription(String,'/amcl_pose_3',self.position_callback3,1)
 
     def setup_service_clients(self):
@@ -73,6 +73,14 @@ class RobotManager(Node):
         position = msg.pose.pose.position
         self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-1"]=(position.x,position.y)
+
+        # 로봇의 위치 정보를 JSON 형식으로 구성
+        robot_position = {
+            "robot_id": "R-1",
+            "x": position.x,
+            "y": position.y
+        }
+        self.tcp_send(robot_position)
     
     def position_callback2(self, msg):
         position = msg.pose.pose.position
@@ -81,6 +89,8 @@ class RobotManager(Node):
     
     def position_callback3(self, msg):
         position = msg.pose.pose.position
+        print(f'Position: [{position.x}, {position.y}]')
+        # position = msg.pose.pose.position
         self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-3"]=(position.x,position.y)
 
@@ -425,7 +435,17 @@ class RobotManager(Node):
         result3 = self.finish_order()
         result4 = self.cur_order()
         self.send_json(result1,result2,result3,result4)
-            
+
+    def tcp_send(self,data):
+        result = json.dumps(data)
+
+        for client in self.client_list:
+            try:
+                client.sendall(result.encode('utf-8'))
+            except Exception as e:
+                print(f"Failed to send data to a client: {e}")
+                self.clients.remove(client)
+
     def send_json(self,result1,result2,result3,result4):
         combined_results = {
             'robot_status': result1,
@@ -433,15 +453,9 @@ class RobotManager(Node):
             'finish_orders': result3,
             'cur_orders': result4
         }
-        
-        combined_results_json = json.dumps(combined_results)
-        
-        for client in self.client_list:
-            try:
-                client.sendall(combined_results_json.encode('utf-8'))
-            except Exception as e:
-                print(f"Failed to send data to a client: {e}")
-                self.clients.remove(client)
+
+        self.tcp_send(combined_results)
+       
 
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
@@ -455,8 +469,8 @@ def main(args=None):
 
     #  노드 생성
     robot_manager = RobotManager(HOST,PORT,db_manager)
-    # server_thread = threading.Thread(target=robot_manager.start_server)
-    # server_thread.start()
+    #server_thread = threading.Thread(target=robot_manager.start_server)
+    #server_thread.start()
 
     rclpy.spin(robot_manager)
 

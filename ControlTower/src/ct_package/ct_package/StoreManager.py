@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 # HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
-HOST = '192.168.0.69' # server(yjs) ethernet
+HOST = '192.168.0.8' # server(yjs) ethernet
 # HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
 HOST_DB = '192.168.0.8' # DB manager kjh rosteam3 wifi
 STORE_PORT = 9023

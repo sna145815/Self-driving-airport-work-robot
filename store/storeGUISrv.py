@@ -13,7 +13,7 @@ import time
 import threading
 # import numpy as np
 
-HOST = "192.168.0.69" # yjs ethernet
+HOST = "192.168.0.8" # yjs ethernet
 # HOST = "192.168.1.102" # yjs rosteam3 wifi
 # HOST = "192.168.0.30" # jinhong
 PORT = 9023

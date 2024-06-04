@@ -1,10 +1,9 @@
 import sys
 import socket
 import json
-import rclpy
-from geometry_msgs.msg import PoseStamped
+import yaml
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem,QDialog
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen,QTransform
 from PyQt5 import uic
 from PyQt5.QtCore import QThread, pyqtSignal, Qt,QTimer
 
@@ -52,6 +51,7 @@ from_class = uic.loadUiType("ControlGUI.ui")[0]
 class ReceiveThread(QThread):
     data_received = pyqtSignal(dict)
     log_received = pyqtSignal(dict)
+    position_received = pyqtSignal(str, dict)
 
     def __init__(self, client):
         super().__init__()
@@ -61,7 +61,9 @@ class ReceiveThread(QThread):
         for data in self.client.receive_data():
             if 'robot_logs' in data:
                 self.log_received.emit(data)
-                print(data)
+            elif 'robot_id' in data:  # 'robot_id' 키를 확인하여 로봇 위치 데이터를 받았을 때
+                robot_id = data['robot_id']
+                self.position_received.emit(robot_id, data)  # 로봇 ID와 위치 데이터를 함께 전송
             else:
                 self.data_received.emit(data)
 
@@ -79,6 +81,7 @@ class Logmodal(QDialog):
                 item = QTableWidgetItem(str(value))
                 item.setTextAlignment(Qt.AlignCenter)
                 table_widget.setItem(row, col, item)
+        table_widget.resizeColumnsToContents()
 
 # 메인 윈도우 클래스
 class MainWindow(QMainWindow, from_class):
@@ -91,9 +94,9 @@ class MainWindow(QMainWindow, from_class):
         self.port = port
 
         self.robots = {
-                        "R-1": (190, 610),
-                        "R-2": (610, 610),
-                        "R-3": (1055, 610)
+                        "R-1": (0.03, 2.5),
+                        "R-2": (0.03, 1.6),
+                        "R-3": (0.03, 0.6)
                     }
         
         # TCP 클라이언트 초기화 및 연결
@@ -104,38 +107,40 @@ class MainWindow(QMainWindow, from_class):
         self.receive_thread = ReceiveThread(self.client)
         self.receive_thread.data_received.connect(self.update_status)
         self.receive_thread.log_received.connect(self.get_robot_log)
+        self.receive_thread.position_received.connect(self.position)
         self.receive_thread.start()
 
         self.CurOrder.itemClicked.connect(self.send_order_no)
         self.FinishOrder.itemClicked.connect(self.send_order_no)
         self.UnproOrder.itemClicked.connect(self.send_order_no)
 
-        # self.position1 = self.create_subscription(PoseStamped,'/amcl_pose_1',self.position_callback1,1)
-        # self.position2 = self.create_subscription(PoseStamped,'/amcl_pose_2',self.position_callback2,1)
-        # self.position3 = self.create_subscription(PoseStamped,'/amcl_pose_3',self.position_callback3,1)
+        yaml_file_path = "map.yaml"
 
-        # 이미지 로드 및 QLabel에 설정
-        self.pixmap = QPixmap('map.png')
+        # YAML 파일 읽기
+        with open(yaml_file_path, "r") as file:
+            map_yaml_data = yaml.safe_load(file)
+        
+        self.pixmap = QPixmap(map_yaml_data['image'])
         self.Map.setPixmap(self.pixmap)
         self.Map.setScaledContents(True)
 
-        # 로봇 이미지 로드 및 크기 조정
-        self.robot_pixmap = QPixmap('robot.jpg').scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.robot_positions = [(190, 610), (610, 610), (1055, 610)]  # 초기 위치
-        self.robot_paths = [[], [],[]]  # 3로봇의 경로
-
-        # 타이머 설정
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_robot_positions)
-        self.timer.start(100)  # 0.1초마다 업데이트
-
-        #경로 지우기 타이머
-        self.clear_path_timer = QTimer()
-        self.clear_path_timer.timeout.connect(self.clear_robot_paths)
-        self.clear_path_timer.start(20000)  # 10초마다 경로 지우기
-
-
+        self.height = self.pixmap.size().height()
+        self.width = self.pixmap.size().width()
+        self.image_scale = 6
+        self.pixmap = self.pixmap.transformed(QTransform().scale(-1, -1))
+        self.Map.setPixmap(self.pixmap.scaled(self.width * self.image_scale, self.height * self.image_scale, Qt.KeepAspectRatio))
     
+        self.map_resolution = map_yaml_data['resolution']
+        self.map_origin = map_yaml_data['origin'][:2]
+        self.update_map()
+
+
+    def mousePressEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            pos = event.pos()
+            label_pos = self.Map.mapFromParent(pos)
+            print("Mouse clicked at label position:", label_pos.x(), ",", label_pos.y())
+
     # 테이블 위젯에 데이터 추가
     def update_status(self, data):
         robot_status = data.get('robot_status')
@@ -183,9 +188,16 @@ class MainWindow(QMainWindow, from_class):
         window_2.update_table_data(window_2.RobotLog,data)
         window_2.exec_()
 
-    def position_callback1(self, msg):
-        position = msg.pose.pose.position
-        self.robots["R-1"]=(position.x,position.y)
+    def position(self, robot_id, data):
+        if robot_id == "R-1":
+            self.robots["R-1"] = (data["x"], data["y"])
+        elif robot_id == "R-2":
+            self.robots["R-2"] = (data["x"], data["y"])
+        elif robot_id == "R-3":
+            self.robots["R-3"] = (data["x"], data["y"])
+        self.update_map()
+
+        
 
     def position_callback2(self, msg):
         position = msg.pose.pose.position
@@ -206,8 +218,8 @@ class MainWindow(QMainWindow, from_class):
         # 이동 경로 저장
         for i, (old_pos, new_pos) in enumerate(zip(self.robot_positions, new_positions)):
             # 이동 경로를 저장하기 전에 각 리스트의 길이를 비교하여 더 짧은 리스트의 길이에 맞춰서만 저장합니다.
-            # if i < len(self.robot_paths):
-            self.robot_paths[i].append((old_pos, new_pos))
+            if i < len(self.robot_paths):
+                self.robot_paths[i].append((old_pos, new_pos))
 
         # 로봇 위치 갱신
         self.robot_positions = new_positions
@@ -216,32 +228,39 @@ class MainWindow(QMainWindow, from_class):
         self.update_map()
 
     def update_map(self):
-        # 맵 이미지를 새로 그리기
-        pixmap = self.pixmap.copy()
-        painter = QPainter(pixmap)
-        
-        # 로봇 이동 경로를 빨간색으로 그리기
-        pen = QPen(QColor(255, 0, 0))  # 빨간색 펜
-        pen.setWidth(3)  # 선 두께 설정
-        painter.setPen(pen)
-        for paths in self.robot_paths:
-            for path in paths:
-                painter.drawLine(path[0][0], path[0][1], path[1][0], path[1][1])
-        
-        # 로봇 위치를 그리기
-        for pos in self.robot_positions:
-            painter.drawPixmap(pos[0] - self.robot_pixmap.width() // 2, pos[1] - self.robot_pixmap.height() // 2, self.robot_pixmap)
-        
-        painter.end()
-        self.Map.setPixmap(pixmap)
+        self.Map.setPixmap(self.pixmap.scaled(self.width * self.image_scale, self.height * self.image_scale, Qt.KeepAspectRatio))
 
-    def clear_robot_paths(self):
-        # 이동 경로 지우기
-        self.robot_paths = [[], []]
-        self.update_map()  # 맵 갱신
+        painter = QPainter(self.Map.pixmap())
+
+        for robot_id, position in self.robots.items():
+            x, y = self.calc_grid_position(position[0], position[1])
+
+            # 로봇 표시
+            if robot_id == "R-1":
+                painter.setPen(QPen(Qt.red, 20, Qt.SolidLine))
+                painter.drawPoint(int((self.width - x) * self.image_scale), int(y * self.image_scale))
+                painter.drawText(int((self.width - x) * self.image_scale + 13), int(y * self.image_scale + 5), robot_id)
+            elif robot_id == "R-2":
+                painter.setPen(QPen(Qt.green, 20, Qt.SolidLine))
+                painter.drawPoint(int((self.width - x) * self.image_scale), int(y * self.image_scale))
+                painter.drawText(int((self.width - x) * self.image_scale + 13), int(y * self.image_scale + 5), robot_id)
+            elif robot_id == "R-3":
+                painter.setPen(QPen(Qt.blue, 20, Qt.SolidLine))
+                painter.drawPoint(int((self.width - x) * self.image_scale), int(y * self.image_scale))
+                painter.drawText(int((self.width - x) * self.image_scale + 13), int(y * self.image_scale + 5), robot_id)
+
+        painter.end()
+
+    
+    def calc_grid_position(self, x, y):
+        pos_x = (x - self.map_origin[0]) / self.map_resolution
+        pos_y = (y - self.map_origin[1]) / self.map_resolution
+        return pos_x, pos_y
+    
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow('192.168.0.8', 9035)  # 호스트 및 포트를 적절히 수정
+    window = MainWindow('192.168.0.15', 9036)  # 호스트 및 포트를 적절히 수정
     window.show()
     sys.exit(app.exec_())
