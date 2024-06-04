@@ -3,7 +3,7 @@ import os
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float32MultiArray
+from std_msgs.msg import String, Int16, Float32MultiArray
 
 
 from nav2_simple_commander.robot_navigator import BasicNavigator
@@ -23,6 +23,7 @@ from ct_package.pathDict import returnPathDict
 from ct_package.pathDict import robotXY_Dict
 from ct_package.pathDict import storeXY_Dict
 from ct_package.pathDict import kioskXY_Dict
+from ct_package.pathDict import endPoint_Dict
 from ct_package.pathDict import wayList
 # sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -42,10 +43,16 @@ class robotTaskManager(Node):
 
         # self.basicNaviInit()
 
+        # self.shortGoalPub = {
+        #     "R-1": self.create_publisher(Float32MultiArray, 'shortGoal_1', 10),
+        #     "R-2": self.create_publisher(Float32MultiArray, 'shortGoal_2', 10),
+        #     "R-3": self.create_publisher(Float32MultiArray, 'shortGoal_3', 10)
+        # }
+
         self.shortGoalPub = {
-            "R-1": self.create_publisher(Float32MultiArray, 'shortGoal_1', 10),
-            "R-2": self.create_publisher(Float32MultiArray, 'shortGoal_2', 10),
-            "R-3": self.create_publisher(Float32MultiArray, 'shortGoal_3', 10)
+            "R-1": self.create_publisher(Int16, 'shortGoal_1', 10),
+            "R-2": self.create_publisher(Int16, 'shortGoal_2', 10),
+            "R-3": self.create_publisher(Int16, 'shortGoal_3', 10)
         }
         
 
@@ -177,11 +184,11 @@ class robotTaskManager(Node):
       
         if (cmd == 0) or (cmd == 1) or (cmd == 2):
             # 임무 할당 플래그 set하기
-            if self.movingFlg1 == 0:
-                self.movingFlg1 = 1
-                self.endGoal1 = self.nav_callback(robotId, cmd, endPoint)     # 최종 목적지 할당 및 점유 플래그 set
+            if self.movingFlg2 == 0:
+                self.movingFlg2 = 1
+                self.endGoal2 = self.nav_callback(robotId, cmd, endPoint)     # 최종 목적지 할당 및 점유 플래그 set
                 print("robot2 임무 할당!!")
-            elif self.movingFlg1 == 1:
+            elif self.movingFlg2 == 1:
                 # 최종목적지 할당되어있고 waypoint 이동중
                 print("robot1 keep going")
             else:
@@ -195,11 +202,11 @@ class robotTaskManager(Node):
       
         if (cmd == 0) or (cmd == 1) or (cmd == 2):
             # 임무 할당 플래그 set하기
-            if self.movingFlg1 == 0:
-                self.movingFlg1 = 1
-                self.endGoal1 = self.nav_callback(robotId, cmd, endPoint)     # 최종 목적지 할당 및 점유 플래그 set
+            if self.movingFlg3 == 0:
+                self.movingFlg3 = 1
+                self.endGoal3 = self.nav_callback(robotId, cmd, endPoint)     # 최종 목적지 할당 및 점유 플래그 set
                 print("robot3 임무 할당!!")
-            elif self.movingFlg1 == 1:
+            elif self.movingFlg3 == 1:
                 # 최종목적지 할당되어있고 waypoint 이동중
                 print("robot1 keep going")
             else:
@@ -314,15 +321,26 @@ class robotTaskManager(Node):
     def gotoGoal(self, robotId, pathDict, xyDict, startPoint, endPoint):
         if robotId == "R-1":
             step = self.step1
-            topic = "shortGoal_1"
+            shortGoal = self.shortGoal1
+            movingWayFlg = self.robotControl.movingWayFlg1
         elif robotId == "R-2":
             step = self.step2
-            topic = "shortGoal_2"
+            shortGoal = self.shortGoal2
+            movingWayFlg = self.robotControl.movingWayFlg2
         elif robotId == "R-3":
             step = self.step3
-            topic = "shortGoal_3"
+            shortGoal = self.shortGoal3
+            movingWayFlg = self.robotControl.movingWayFlg3
         else:
             print("wrong robotId")
+
+
+        if movingWayFlg==0:
+            # 실행
+            pass
+        elif movingWayFlg==1:
+            print("waypoint 이동중")
+            pass
         
         msg = Float32MultiArray()
 
@@ -343,20 +361,20 @@ class robotTaskManager(Node):
                 # 이전 위치의 점유 플래그 reset 해줘야됨
                 self.goalNode[startPoint] = 0
 
-                nodeName = pathDict[startPoint][endPoint][i][step]
+                nodeNum = pathDict[startPoint][endPoint][i][step]
                 
                 # node 플래그 숫자로 변환
-                num = self.transformNodeNum(nodeName)
+                num = self.transformNodeNum(nodeNum)
 
                 if self.node[num] == 0:
                     step = step + 1
-                    shortGoal = wayList[nodeName]
+                    # shortGoal = wayList[nodeNum]
                     print(num)
                     self.node[num] = 1 # 현재 점령한 노드 플래그값 set
 
                     # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                     # drobot_Motor 한테 self.shortGoal 보내기
-                    msg.data = shortGoal
+                    msg.data = nodeNum # int
                     self.shortGoalPub[robotId].publish(msg)
                     # self.moveNavi(self.shortGoal)
                     # server에 도착했다고 응답 보내기, or 이동중 플래그 값 reset하기
@@ -373,19 +391,19 @@ class robotTaskManager(Node):
                 if shortGoal == wayList[lastNodeName]:
                     # 이길이 맞아 keep going
                     # step에 따라 검토
-                    nodeName = pathDict[startPoint][endPoint][i][step]
+                    nodeNum = pathDict[startPoint][endPoint][i][step]
                     # node 플래그 숫자로 변환
-                    num = self.transformNodeNum(nodeName)
+                    num = self.transformNodeNum(nodeNum)
 
                     if self.node[num] == 0:
                         step = step + 1
-                        shortGoal = wayList[nodeName]
+                        # shortGoal = wayList[nodeName]
                         print(num)
                         self.node[num] = 1 # 현재 점령한 노드 플래그값 set
 
                         # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                         # drobot_Motor 한테 self.shortGoal 보내기
-                        msg.data = shortGoal
+                        msg.data = nodeNum
                         self.shortGoalPub[robotId].publish(msg)
                         # self.moveNavi(self.shortGoal)
                         # server에 도착했다고 응답 보내기, or 이동중 플래그 값 reset하기
@@ -398,7 +416,8 @@ class robotTaskManager(Node):
                     pass
             elif (noWay == 1) or (step == pathLength):   # 최종 목적지 node로 이동할 차례
                 print(step)
-                shortGoal = xyDict[endPoint]
+                # shortGoal = xyDict[endPoint]
+                nodeNum = endPoint_Dict[endPoint]
                 if noWay == 1:
                     # K or S 의 node 점령 플래그 reset
                     self.goalNode[startPoint] = 0
@@ -410,12 +429,12 @@ class robotTaskManager(Node):
                     # 이전 노드 점령 플래그 reset
                     self.node[lastNum] = 0 
 
-                print(shortGoal)
+                # print(shortGoal)
 
                 # self.moveNavi(self.shortGoal)
                 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                 # drobot_Motor 한테 self.shortGoal 보내기
-                msg.data = shortGoal
+                msg.data = nodeNum
                 self.shortGoalPub[robotId].publish(msg)
 
                 if robotId == "R-1":
@@ -440,10 +459,13 @@ class robotTaskManager(Node):
 
             if robotId == "R-1":
                 self.step1 = step
+                self.shortGoal1 = nodeNum
             elif robotId == "R-2":
                 self.step2 = step
+                self.shortGoal2 = nodeNum
             elif robotId == "R-3":
                 self.step3 = step
+                self.shortGoal3 = nodeNum
             else:
                 print("wrong robotId")
 
