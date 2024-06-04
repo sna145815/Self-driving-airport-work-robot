@@ -81,12 +81,12 @@ class RobotControl(Node):
             depth=10
         )
 
-        self.timer_period = 1.0
-        self.timer = self.create_timer(self.timer_period, self.timer_callback)
+        # self.timer_period = 1.0
+        # self.timer = self.create_timer(self.timer_period, self.timer_callback)
 
         self.setup_rm()
         self.setup_robots()
-        self.setup_pubs()
+        # self.setup_pubs()
         self.setup_subs()
         # self.wait_for_services()
 
@@ -127,12 +127,12 @@ class RobotControl(Node):
         }
 
     #publishers and subscriptions
-    def setup_pubs(self):
-        self.goal_publishers = {
-            'R-1' : self.create_publisher(String, "/move_1",self.qos_profile),
-            'R-2' : self.create_publisher(String, "/move_2", self.qos_profile),
-            'R-3' : self.create_publisher(String, "/move_3", self.qos_profile)
-        }
+    # def setup_pubs(self):
+        # self.goal_publishers = {
+        #     'R-1' : self.create_publisher(String, "/move_1",self.qos_profile),
+        #     'R-2' : self.create_publisher(String, "/move_2", self.qos_profile),
+        #     'R-3' : self.create_publisher(String, "/move_3", self.qos_profile)
+        # }
 
     def setup_subs(self):
         self.robots_status = {
@@ -216,28 +216,28 @@ class RobotControl(Node):
         except Exception as e:
             self.get_logger().error(f"Delivery box request failed with exception: {e}")
 
-    def timer_callback(self):
-        for robot in self.robots:
-            msg = String()
-            if robot.is_active:
-                robot_id = robot.robot_id
-                if robot.current_status == RobotStatus.HOME or robot.current_status == RobotStatus.AT_HOME:
-                    self.get_logger().info(f"{robot_id} go to {robot.store_id}")
-                    msg.data = robot.store_id
-                    self.goal_publishers[robot_id].publish(msg)
-                elif robot.current_status == RobotStatus.AT_STORE and robot.current_order_status == OrderStatus.DELIVERY_START:
-                    self.get_logger().info(f"{robot_id} go to {robot.kiosk_id}")
-                    msg.data = robot.kiosk_id
-                    self.goal_publishers[robot_id].publish(msg)
-                elif robot.current_status == RobotStatus.AT_KIOSK and robot.current_order_status == OrderStatus.DELIVERY_FINISH:
-                    self.get_logger().info(f"go to robot {robot_id} home")
-                    msg.data = f"H-{robot_id[2]}" # 추가 처리 필요
-                    self.goal_publishers[robot_id].publish(msg)
-                    robot.reset()
-                    print(robot)
-            else:
-                pass
-                ## 에러 처리 해야할 듯
+    # def timer_callback(self):
+    #     for robot in self.robots:
+    #         msg = String()
+    #         if robot.is_active:
+    #             robot_id = robot.robot_id
+    #             if robot.current_status == RobotStatus.HOME or robot.current_status == RobotStatus.AT_HOME:
+    #                 self.get_logger().info(f"{robot_id} go to {robot.store_id}")
+    #                 msg.data = robot.store_id
+    #                 self.goal_publishers[robot_id].publish(msg)
+    #             elif robot.current_status == RobotStatus.AT_STORE and robot.current_order_status == OrderStatus.DELIVERY_START:
+    #                 self.get_logger().info(f"{robot_id} go to {robot.kiosk_id}")
+    #                 msg.data = robot.kiosk_id
+    #                 self.goal_publishers[robot_id].publish(msg)
+    #             elif robot.current_status == RobotStatus.AT_KIOSK and robot.current_order_status == OrderStatus.DELIVERY_FINISH:
+    #                 self.get_logger().info(f"go to robot {robot_id} home")
+    #                 msg.data = f"H-{robot_id[2]}" # 추가 처리 필요
+    #                 self.goal_publishers[robot_id].publish(msg)
+    #                 robot.reset()
+    #                 print(robot)
+    #         else:
+    #             pass
+    #             ## 에러 처리 해야할 듯
 
     def robot_status_callback_1(self, msg):
         return self.robot_status_callback(self.robot_1, msg)
