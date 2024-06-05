@@ -35,10 +35,10 @@ from interface_package.srv import RobotArrival
 
 
 
-class robotTaskManager(Node):
-    def __init__(self, robotControlNode):
-        super().__init__('taskManager')
-        self.robotControl = robotControlNode
+class robotTaskManager(RobotControl):
+    def __init__(self):
+        # super().__init__('taskManager')
+        super().__init__()
 
         self.timer_period = 5.0
         self.timer = self.create_timer(self.timer_period, self.robotStatusCheck_timer_callback)
@@ -125,23 +125,107 @@ class robotTaskManager(Node):
     def robotArrival_callback_service(self, request, response):
         try:
             print("robotArrival_callback_service  Start")
+            robotStatus1 = self.robot_1.current_status
+            robotStatus2 = self.robot_2.current_status
+            robotStatus3 = self.robot_3.current_status
+
             if request.arrival == "1":
                 self.movingWayFlg1 = 1
+                # HOME 상태도 조건문에 추가해야 할 수도
+                if (robotStatus1 == RobotStatus.AT_STORE) or (robotStatus1 == RobotStatus.AT_KIOSK):
+                    self.movingFlg1 = 0
+                elif (robotStatus1 == RobotStatus.HOME):
+                    self.flagClear("R-1")
+                    self.robot_1.reset()
+                # else:
+                #     self.movingWayFlg1 = 1
+                # 여기에서 로봇이 최종목적지에 도착해는지 확인해서 
+                #self.movingFlg3
+                # 이거를 최종 목적지 도착했을때만 0으로 클리어해주면 됨
                 response.success = True
             elif request.arrival == "2":
                 self.movingWayFlg2 = 1
+                if (robotStatus2 == RobotStatus.AT_STORE) or (robotStatus2 == RobotStatus.AT_KIOSK):
+                    self.movingFlg2 = 0
+                elif (robotStatus2 == RobotStatus.HOME):
+                    self.flagClear("R-2")
+                    self.robot_2.reset()
+                # else:
+                #     self.movingWayFlg2 = 1
+
                 response.success = True
             elif request.arrival == "3":
+                # self.get_logger().info(f"{robot_id} go to {robot.endPoint}")
                 self.movingWayFlg3 = 1
+                if (robotStatus3 == RobotStatus.AT_STORE) or (robotStatus3 == RobotStatus.AT_KIOSK) or (robotStatus3 == RobotStatus.AT_HOME):
+                    print(" ATTTTTTTTTTTTTTTTTTTTttt")
+                    self.movingFlg3 = 0
+                elif (robotStatus3 == RobotStatus.HOME):
+                    print(" sa;lkdfjsa;ldkfjas;lkdfjasd")
+                    # init
+                    self.flagClear("R-3")
+                    self.robot_3.reset()
+                else:
+                    print("elseEEEEEEEEEEEEEEEEEEEEEEEEee")
+                    # self.movingWayFlg3 = 1
+
                 response.success = True
             else:
                 response.success = False
 
-            print("movingWayFlg1 : ", self.movingWayFlg1)
+            # print("movingWayFlg1 : ", self.movingWayFlg1)
+            print("self.movingFlg3 : ",self.movingFlg3)
 
             return response
         except Exception as e:
             print("robotArrival service Error : ",e)
+
+    def flagClear(self, robotId):
+        if robotId == "R-1":
+            # 관리할 로봇별 변수 초기화
+            self.currentXY1 = "R-1"
+            self.pathDict1 = callPathDict
+            self.xyDict1 = storeXY_Dict   
+            self.endGoal1 = None
+            self.shortGoal1 = None
+            # path를 이동할때, 몇번째 단계인가
+            self.step1 = 0
+            # 계획된 path에서 경유지가 없을때, 1로 set (ex) S11 -> K12 바로 갈때
+            self.noWay1 = 0
+            # 최종 목적지로 이동중이면 1로 set, R1, K11, S11 등에 도착한 상태이면 0으로 reset
+            self.movingFlg1 = 0
+            # wayPoint에 도착했으면 1로 set, 이동중이면 0으로 reset
+            self.movingWayFlg1 = 1 
+        elif robotId == "R-2":
+            # 관리할 로봇별 변수 초기화
+            self.currentXY2 = "R-2"
+            self.pathDict2 = callPathDict
+            self.xyDict2 = storeXY_Dict   
+            self.endGoal2 = None
+            self.shortGoal2 = None
+            # path를 이동할때, 몇번째 단계인가
+            self.step2 = 0
+            # 계획된 path에서 경유지가 없을때, 1로 set (ex) S11 -> K12 바로 갈때
+            self.noWay2 = 0
+            # 최종 목적지로 이동중이면 1로 set, R1, K11, S11 등에 도착한 상태이면 0으로 reset
+            self.movingFlg2 = 0
+            # wayPoint에 도착했으면 1로 set, 이동중이면 0으로 reset
+            self.movingWayFlg2 = 1 
+        elif robotId == "R-3":
+            # 관리할 로봇별 변수 초기화
+            self.currentXY3 = "R-3"
+            self.pathDict3 = callPathDict
+            self.xyDict3 = storeXY_Dict   
+            self.endGoal3 = None
+            self.shortGoal3 = None
+            # path를 이동할때, 몇번째 단계인가
+            self.step3 = 0
+            # 계획된 path에서 경유지가 없을때, 1로 set (ex) S11 -> K13 바로 갈때
+            self.noWay3 = 0
+            # 최종 목적지로 이동중이면 1로 set, R1, K11, S11 등에 도착한 상태이면 0으로 reset
+            self.movingFlg3 = 0
+            # wayPoint에 도착했으면 1로 set, 이동중이면 0으로 reset
+            self.movingWayFlg3 = 1 
         
     def robotStatusCheck_timer_callback(self):
         # 각각의 로봇이 이동중인지 노드에 도착했는지를 판단해서 cmd_callback 실행시키면됨
@@ -151,27 +235,42 @@ class robotTaskManager(Node):
         movingFlg = None
         movingWayFlg = None
         # endPoint = None
-        for robot in self.robotControl.robots:
-            
+        for robot in self.robots:
+            print("robot is_active : ", robot.is_active)
+            robot_id = robot.robot_id # R-1, R-2, R-3
+
+            if robot_id == "R-1":
+                movingFlg = self.movingFlg1
+                movingWayFlg = self.movingWayFlg1
+            elif robot_id == "R-2":
+                movingFlg = self.movingFlg2
+                movingWayFlg = self.movingWayFlg1
+            elif robot_id == "R-3":
+                movingFlg = self.movingFlg3
+                movingWayFlg = self.movingWayFlg1
+            else:
+                print("not defined Robot")
+
             if robot.is_active:     # 로봇이 주문을 받으면 active됨(주문 들어옴과 동시에 true됨, 주문 끝날때까지 true)
-                robot_id = robot.robot_id # R-1, R-2, R-3
-                if robot_id == "R-1":
-                    movingFlg = self.movingFlg1
-                    movingWayFlg = self.movingWayFlg1
-                elif robot_id == "R-2":
-                    movingFlg = self.movingFlg2
-                    movingWayFlg = self.movingWayFlg1
-                elif robot_id == "R-3":
-                    movingFlg = self.movingFlg3
-                    movingWayFlg = self.movingWayFlg1
-                else:
-                    print("not defined Robot")
+                # robot_id = robot.robot_id # R-1, R-2, R-3
+                # if robot_id == "R-1":
+                #     movingFlg = self.movingFlg1
+                #     movingWayFlg = self.movingWayFlg1
+                # elif robot_id == "R-2":
+                #     movingFlg = self.movingFlg2
+                #     movingWayFlg = self.movingWayFlg1
+                # elif robot_id == "R-3":
+                #     movingFlg = self.movingFlg3
+                #     movingWayFlg = self.movingWayFlg1
+                # else:
+                #     print("not defined Robot")
 
                 # 일단 여기 들어오면 주문이 할당된 로봇이야
-                self.get_logger().info(f"{robot.current_status} and {robot.current_order_status}")
+                self.get_logger().info(f"{robot.robot_id} and {robot.current_status} and {robot.current_order_status}")
 
                 if robot.current_status == RobotStatus.HOME or robot.current_status == RobotStatus.AT_HOME:
                     # to 배차모드
+                    print("배차 시작 : ", movingFlg)
                     self.get_logger().info(f"{robot_id} go to {robot.store_id}")
                     # movingFlg1가 1인지 0인지에따라 cmd_callback 실행?
                     # 0이면 최종목적지 할당 안된 상태, 1이면 이미 할당됐고, waypoint 계산해야됨
@@ -180,38 +279,57 @@ class robotTaskManager(Node):
                         robot.endPoint = robot.store_id   # ex) S-1
                         self.operateCmdCallback(robot_id, cmd, robot.endPoint)
                     else:
-                        print("목적지 이미 할당됨")
+                        print("배차 목적지 이미 할당됨")
                 elif robot.current_status == RobotStatus.AT_STORE and robot.current_order_status == OrderStatus.DELIVERY_START:
                     # to 배달모드 RFID 찍어야 여기로 들어와
+                    print("배달 시작 : ", movingFlg)
                     self.get_logger().info(f"{robot_id} go to {robot.kiosk_id}")
                     if movingFlg == 0:
                         cmd = 1
                         robot.endPoint = robot.kiosk_id   # ex) K-1
                         self.operateCmdCallback(robot_id, cmd, robot.endPoint)
                     else:
-                        print("목적지 이미 할당됨")
+                        print("배달 목적지 이미 할당됨")
                 elif robot.current_status == RobotStatus.AT_KIOSK and robot.current_order_status == OrderStatus.DELIVERY_FINISH:
                     # to 복귀모드 RFID 찍어야 여기로 들어와
+                    print("복귀 시작 : ", movingFlg)
                     self.get_logger().info(f"go to robot {robot_id} home")
                     if movingFlg == 0:
                         cmd = 2
                         robot.endPoint = robot.robot_id   # ex) R-1
                         self.operateCmdCallback(robot_id, cmd, robot.endPoint)
-                        robot.reset()
+                        robot.returning()
                     else:
-                        print("목적지 이미 할당됨")
+                        print("복귀 목적지 이미 할당됨")
 
                     print(robot)
                 elif robot.current_status == RobotStatus.AT_STORE and robot.current_order_status == OrderStatus.DELIVERY_YET:
                     continue
                 elif robot.current_status == RobotStatus.AT_KIOSK and robot.current_order_status == OrderStatus.DELIVERY_START:
                     continue
+                elif robot.current_status == RobotStatus.RETURNING:
+                    continue
                 else: # waypoint인 상태
                     # 최종목적지가 아니라 waypoint에 있는상태
+                    # cmd = 이전 cmd
                     print("now waypoint")
                     if movingWayFlg == 1:
                         # endPoint를 위에서 이미 할당받았던거를 그대로 써야됨
                         self.operateCmdCallback(robot_id, cmd, robot.endPoint)
+            elif ((not robot.is_active) and (robot.current_status == RobotStatus.RETURNING)):
+                # 집으로 돌아가야되
+                print("not robot.is_active ......")
+                self.get_logger().info(f"{robot_id} go to {robot.endPoint}")
+                cmd = 2
+                self.operateCmdCallback(robot_id, cmd, robot.endPoint)
+                
+                
+                # if movingFlg == 0:
+                #     cmd = 2
+                #     # robot.endPoint = robot.robot_id   # ex) R-1
+                #     self.operateCmdCallback(robot_id, cmd, robot.endPoint)
+                # else:
+                #     print("복귀 목적지 이미 할당됨2")
 
             else:
                 print(f"{robot.robot_id} : non active")
@@ -224,7 +342,7 @@ class robotTaskManager(Node):
         cmd = 0
         readyFlg = 1
         # endPoint = None
-        for robot in self.robotControl.robots:
+        for robot in self.robots:
             
             if robot.is_active:     # 로봇이 노드 단위로 도착만 하면 active 됨
                 robot_id = robot.robot_id # R-1, R-2, R-3
@@ -235,7 +353,7 @@ class robotTaskManager(Node):
                     # to 배차모드
                     self.get_logger().info(f"{robot_id} go to {robot.store_id}")
                     # msg.data = robot.store_id
-                    # self.robotControl.goal_publishers[robot_id].publish(msg)
+                    # self.goal_publishers[robot_id].publish(msg)
 
                     cmd = 0
                     robot.endPoint = robot.store_id   # ex) S-1
@@ -243,7 +361,7 @@ class robotTaskManager(Node):
                     # to 배달모드
                     self.get_logger().info(f"{robot_id} go to {robot.kiosk_id}")
                     # msg.data = robot.kiosk_id
-                    # self.robotControl.goal_publishers[robot_id].publish(msg)
+                    # selfgoal_publishers[robot_id].publish(msg)
 
                     cmd = 1
                     robot.endPoint = robot.kiosk_id   # ex) K-1
@@ -251,7 +369,7 @@ class robotTaskManager(Node):
                     # to 복귀모드
                     self.get_logger().info(f"go to robot {robot_id} home")
                     # msg.data = f"H-{robot_id[2]}" # 추가 처리 필요
-                    # self.robotControl.goal_publishers[robot_id].publish(msg)
+                    # self.goal_publishers[robot_id].publish(msg)
 
                     cmd = 2
                     robot.endPoint = robot_id # ex) R-1
@@ -359,7 +477,7 @@ class robotTaskManager(Node):
                 print("robot3 임무 할당!!")
             elif self.movingFlg3 == 1:
                 # 최종목적지 할당되어있고 waypoint 이동중
-                print("robot1 keep going")
+                print("robot3 keep going")
             else:
                 pass
 
@@ -622,17 +740,17 @@ class robotTaskManager(Node):
 
                     if robotId == "R-1":
                         self.currentXY1 = finalGoal
-                        self.movingFlg1 = 0  # 임무할당 해제
+                        # self.movingFlg1 = 0  # 임무할당 해제
                         self.step1 = 0
                         print(self.currentXY1)
                     elif robotId == "R-2":
                         self.currentXY2 = finalGoal
-                        self.movingFlg2 = 0  # 임무할당 해제
+                        # self.movingFlg2 = 0  # 임무할당 해제
                         self.step2 = 0
                         print(self.currentXY2)
                     elif robotId == "R-3":
                         self.currentXY3 = finalGoal
-                        self.movingFlg3 = 0  # 임무할당 해제
+                        # self.movingFlg3 = 0  # 임무할당 해제
                         self.step3 = 0
                         print(self.currentXY3)
                     else:
@@ -684,98 +802,23 @@ class robotTaskManager(Node):
     
 
 
-
-
-
-    # def basicNaviInit(self):
-    #     try:
-    #         # rclpy.init()
-    #         self.nav = BasicNavigator()
-    #         self.pose_current = PoseWithCovarianceStamped()
-    #         self.start_time = time.time()
-    #         self.nav.waitUntilNav2Active()
-    #         print("basicNavi init complete!")
-    #     except Exception as e:
-    #         print("basicNaviInit error : ", e)
-    #     except KeyboardInterrupt:
-    #         self.safe_shutdown()
-
-    # def safe_shutdown(self):
-    #     self.nav.destroy_node()
-    #     # nav.lifecycleShutdown()  # Shut down the navigator
-    #     rclpy.shutdown()  # Shut down rclpy
-    #     print("Node has been safely shut down.")
-
-    # def goalPose(self, p_x, p_y, degree):
-    #     tmp = [0, 0, degree]
-    #     # print(np.array(tmp)*to_radian)
-    #     orientation_val = quaternion_from_euler(tmp[0], tmp[1], tmp[2])
-    #     # print(orientation_val)
-
-    #     goal_pose = PoseStamped()
-    #     goal_pose.header.frame_id = 'map'
-    #     goal_pose.header.stamp = self.nav.get_clock().now().to_msg()
-    #     goal_pose.pose.position.x = p_x
-    #     goal_pose.pose.position.y = p_y
-    #     goal_pose.pose.position.z = 0.0
-    #     goal_pose.pose.orientation.x = 0.0
-    #     goal_pose.pose.orientation.y = 0.0
-    #     goal_pose.pose.orientation.z = orientation_val[2]
-    #     goal_pose.pose.orientation.w = orientation_val[3]
-
-    #     return goal_pose
-    
-
-    # def moveNavi(self, goal):
-    #     x = goal[0]
-    #     y = goal[1]
-    #     degree = goal[2]
-    #     gp = self.goalPose(x, y, degree)
-    #     self.nav.goToPose(gp)
-    #     k = 0
-
-    #     while not self.nav.isTaskComplete():
-    #         k = k + 1
-    #         feedback = self.nav.getFeedback()    # msg.feedback
-            
-    #         # if feedback and k % 5 == 0:
-    #         #     print('Distance remaining: ' + '{:.2f}'.format(feedback.distance_remaining) + ' meters.')
-
-    #         if Duration.from_msg(feedback.navigation_time) > Duration(seconds=20.0):
-    #             self.nav.cancelTask()
-
-    #     result = self.nav.getResult()
-    #     if result == TaskResult.SUCCEEDED:
-    #         # 여기에서 뭔가를 pub
-    #         print('Goal succeeded!')
-    #     elif result == TaskResult.CANCELED:
-    #         print('Goal was canceled!')
-    #     elif result == TaskResult.FAILED:
-    #         print('Goal failed!')
-            
-
-    
-    
-    
-
-
-
 def main(args=None):
     rclpy.init(args=args)
 
-    executor = MultiThreadedExecutor()
+    # executor = MultiThreadedExecutor()
 
-    robotControlInst = RobotControl()
-    robotTaskManagerInst = robotTaskManager(robotControlNode = robotControlInst)
+    # robotControlInst = RobotControl()
+    robotTaskManagerInst = robotTaskManager()
 
-    executor.add_node(robotControlInst)
-    executor.add_node(robotTaskManagerInst)
+    
+    # executor.add_node(robotTaskManagerInst)
 
     try:
-        executor.spin()
+        rclpy.spin(robotTaskManagerInst)
+        # executor.spin()
     finally:
-        executor.shutdown()
-        robotControlInst.destroy_node()
+        # executor.shutdown()
+        # robotControlInst.destroy_node()
         robotTaskManagerInst.destroy_node()
         rclpy.shutdown()
 

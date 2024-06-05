@@ -69,7 +69,7 @@ class Robot():
 
     def returning(self):
         self.is_active = False
-        self.current_order_status = OrderStatus.DELIVERY_YET
+        self.order_id = ""
         self.store_id = ""
         self.kiosk_id = ""
         self.uid = ""
@@ -319,7 +319,7 @@ class RobotControl(Node):
         order_request.uid = uid
         order_request.order_id = order_id
 
-        location_request = LocationInfo().Request()
+        location_request = LocationInfo.Request()
         location_request.store_id = store_id
         location_request.kiosk_id = kiosk_id
 
