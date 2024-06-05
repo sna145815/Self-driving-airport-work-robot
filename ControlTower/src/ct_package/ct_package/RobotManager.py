@@ -16,20 +16,20 @@ from interface_package.srv import RobotDispatch
 
 HOST_DB = '192.168.0.15'
 HOST = '192.168.0.15'
-PORT = 9036
+PORT = 9035
 
 class RobotManager(Node):
     def __init__(self,host,port,dbmanager):
         super().__init__('robot_manager_node')
         self.robots = {
-                        "R-1": (0.044833358377218246, 2.5029311180114746),
-                        "R-2": (0, 0),
-                        "R-3": (49, 49)
+                        "R-1": (0.03, 2.5),
+                        "R-2": (0.03, 1.6),
+                        "R-3": (0.03, 0.6)
                     }
         
         self.work_state = {
                         "R-1": 0,
-                        "R-2": 1,
+                        "R-2": 0,
                         "R-3": 0
                     }
         
@@ -54,9 +54,9 @@ class RobotManager(Node):
         self.setup_topic()
 
     def setup_topic(self):
-        self.position1 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose',self.position_callback1,10)
+        self.position1 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose_1',self.position_callback1,10)
         #self.position2 = self.create_subscription(String,'/amcl_pose_2',self.position_callback2,1)
-        #self.position3 = self.create_subscription(String,'/amcl_pose_3',self.position_callback3,1)
+        self.position3 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose_3',self.position_callback3,10)
 
     def setup_service_clients(self):
         self.robotcall_cli = self.create_client(RobotCall, 'robot_call')
@@ -71,7 +71,7 @@ class RobotManager(Node):
 
     def position_callback1(self, msg):
         position = msg.pose.pose.position
-        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        #self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-1"]=(position.x,position.y)
 
         # 로봇의 위치 정보를 JSON 형식으로 구성
@@ -84,15 +84,21 @@ class RobotManager(Node):
     
     def position_callback2(self, msg):
         position = msg.pose.pose.position
-        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        #self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-2"]=(position.x,position.y)
     
     def position_callback3(self, msg):
         position = msg.pose.pose.position
-        print(f'Position: [{position.x}, {position.y}]')
-        # position = msg.pose.pose.position
-        self.get_logger().info(f'Position: [{position.x}, {position.y}]')
-        self.robots["R-3"]=(position.x,position.y)
+        #self.get_logger().info(f'Position: [{position.x}, {position.y}]')
+        self.robots["R-1"]=(position.x,position.y)
+
+        # 로봇의 위치 정보를 JSON 형식으로 구성
+        robot_position = {
+            "robot_id": "R-3",
+            "x": position.x,
+            "y": position.y
+        }
+        self.tcp_send(robot_position)
 
     def arrival_callback(self, req, res):
         try:
@@ -366,7 +372,7 @@ class RobotManager(Node):
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen()
-            print(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
+            self.get_logger().info(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
 
             while True:
                 conn, addr = self.server_socket.accept()
@@ -374,9 +380,9 @@ class RobotManager(Node):
                 client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
                 client_thread.start()
                 self.gui_init_send()
-                print(f"{addr}에 대한 스레드 시작됨")
+                self.get_logger().info(f"{addr}에 대한 스레드 시작됨")
         except Exception as e:
-            print(f"서버 에러: {e}")
+            self.get_logger().error(f"서버 에러: {e}")
         finally:
             self.close_server()
     
@@ -392,22 +398,22 @@ class RobotManager(Node):
                             try:
                                 client.sendall(json.dumps(self.get_robot_logs(data)).encode('utf-8'))
                             except Exception as e:
-                                print(f"Failed to send data to a client: {e}")
+                                self.get_logger().error(f"Failed to send data to a client: {e}")
                                 self.clients.remove(client)  
                     except ConnectionResetError:
                         break
         except KeyboardInterrupt:
-            print("keyboard exit")
+            self.get_logger().error("keyboard exit")
             self.close_server()
         finally:
             self.close_server()
     
     def close_server(self):
-        print("로봇매니저 서버 소켓 닫는 중")
+        self.get_logger().info("로봇매니저 서버 소켓 닫는 중")
         for conn in self.client_list:
             conn.close()
         self.server_socket.close()
-        print("로봇매니저 서버 소켓 닫힘")
+        self.get_logger().info("로봇매니저 서버 소켓 닫힘")
 
     def finish_order(self):
         query = """
@@ -443,7 +449,7 @@ class RobotManager(Node):
             try:
                 client.sendall(result.encode('utf-8'))
             except Exception as e:
-                print(f"Failed to send data to a client: {e}")
+                self.get_logger().error(f"Failed to send data to a client: {e}")
                 self.clients.remove(client)
 
     def send_json(self,result1,result2,result3,result4):
@@ -469,9 +475,6 @@ def main(args=None):
 
     #  노드 생성
     robot_manager = RobotManager(HOST,PORT,db_manager)
-    #server_thread = threading.Thread(target=robot_manager.start_server)
-    #server_thread.start()
-
     rclpy.spin(robot_manager)
 
     robot_manager.close_server()

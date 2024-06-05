@@ -32,7 +32,7 @@
    </column>
    <column>
     <property name="text">
-     <string>New Column</string>
+     <string>RobotID</string>
     </property>
    </column>
    <column>

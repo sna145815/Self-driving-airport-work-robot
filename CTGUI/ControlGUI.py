@@ -261,6 +261,6 @@ class MainWindow(QMainWindow, from_class):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow('192.168.0.15', 9036)  # 호스트 및 포트를 적절히 수정
+    window = MainWindow('192.168.0.15', 9035)  # 호스트 및 포트를 적절히 수정
     window.show()
     sys.exit(app.exec_())
