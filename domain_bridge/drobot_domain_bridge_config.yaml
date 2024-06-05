@@ -1,0 +1,91 @@
+# Name of the domain bridge, used for node naming and logging
+name: drobot_bridge
+topics:
+  order_info:
+    type: interface_package/srv/OrderInfo
+    from_domain: 71
+    to_domain: 0
+  order_info:
+    type: interface_package/srv/OrderInfo
+    from_domain: 2
+    to_domain: 0
+  order_info:
+    type: interface_package/srv/OrderInfo
+    from_domain: 69
+    to_domain: 0
+
+  order_tracking_1:
+    type: interface_package/srv/OrderTracking
+    from_domain: 0
+    to_domain: 71
+  order_tracking_2:
+    type: interface_package/srv/OrderTracking
+    from_domain: 0
+    to_domain: 2
+  order_tracking_3:
+    type: interface_package/srv/OrderTracking
+    from_domain: 0
+    to_domain: 69
+
+  shortGoal_1:
+    type: std_msgs/msg/Int16
+    from_domain: 0
+    to_domain: 71
+    remap: shortGoal
+  shortGoal_2:
+    type: std_msgs/msg/Int16
+    from_domain: 0
+    to_domain: 2
+    remap: shortGoal
+  shortGoal_3:
+    type: std_msgs/msg/Int16
+    from_domain: 0
+    to_domain: 69
+    remap: shortGoal
+  
+  robotArrival:
+    type: interface_package/srv/RobotArrival
+    from_domain: 0
+    to_domain: 71
+  robotArrival:
+    type: interface_package/srv/RobotArrival
+    from_domain: 0
+    to_domain: 2
+  robotArrival:
+    type: interface_package/srv/RobotArrival
+    from_domain: 0
+    to_domain: 69
+
+  status:
+    type: std_msgs/msg/Int16
+    from_domain: 71
+    to_domain: 0
+    remap: robot_status_1
+  status:
+    type: std_msgs/msg/Int16
+    from_domain: 2
+    to_domain: 0
+    remap: robot_status_2
+  status:
+    type: std_msgs/msg/Int16
+    from_domain: 69
+    to_domain: 0
+    remap: robot_status_3
+
+
+  amcl_pose:
+    type: geometry_msgs/msg/PoseWithCovarianceStamped
+    from_domain: 71
+    to_domain: 0
+    remap: amcl_pose_1
+  amcl_pose:
+    type: geometry_msgs/msg/PoseWithCovarianceStamped
+    from_domain: 2
+    to_domain: 0
+    remap: amcl_pose_3
+  amcl_pose:
+    type: geometry_msgs/msg/PoseWithCovarianceStamped
+    from_domain: 69
+    to_domain: 0
+    remap: amcl_pose_3
+
