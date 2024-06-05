@@ -38,6 +38,7 @@ class Robot():
         self.current_order_status = OrderStatus.DELIVERY_YET
         self.store_id = ""
         self.kiosk_id = ""
+        self.order_id = ""
         self.uid = ""
         self.endPoint = None
     def __str__(self):
@@ -57,12 +58,14 @@ class Robot():
 
     def reset(self):
         self.is_active = False
-        self.current_status = RobotStatus.HOME
-        self.previous_status = RobotStatus.HOME
+        # self.current_status = RobotStatus.HOME
+        # self.previous_status = RobotStatus.HOME
         self.current_order_status = OrderStatus.DELIVERY_YET
+        self.order_id = ""
         self.store_id = ""
         self.kiosk_id = ""
         self.uid = ""
+        # self.endPoint = None
 
     def returning(self):
         self.is_active = False
