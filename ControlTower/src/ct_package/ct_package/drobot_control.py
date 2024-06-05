@@ -1,7 +1,7 @@
 from enum import Enum
 import rclpy as rp
 from rclpy.node import Node
-from interface_package.srv import OrderInfo, OrderTracking, RobotCall, GoalArrival, DeliveryBox
+from interface_package.srv import OrderInfo, OrderTracking, RobotCall, GoalArrival, DeliveryBox, LocationInfo
 from std_msgs.msg import String, Int16
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 
@@ -135,6 +135,12 @@ class RobotControl(Node):
             'R-2': self.create_client(OrderInfo, "order_info_2"),
             'R-3': self.create_client(OrderInfo, "order_info_3")
         }
+        
+        self.motor_order_clients = {
+            'R-1': self.create_client(LocationInfo, "location_info_1"),
+            'R-2': self.create_client(LocationInfo, "location_info_2"),
+            'R-3': self.create_client(LocationInfo, "location_info_3")
+        }
 
     #publishers and subscriptions
     # def setup_pubs(self):
@@ -210,7 +216,7 @@ class RobotControl(Node):
             selected_robot.store_id = store_id
             selected_robot.uid = uid
 
-            self.request_order(robot_id, order_id, uid)
+            self.request_order(robot_id, store_id, kiosk_id, order_id, uid)
 
             response.success = True
 
@@ -306,13 +312,22 @@ class RobotControl(Node):
 
         return response
 
-    def request_order(self, robot_id, order_id, uid):
-        self.get_logger().info(f"request {order_id} to {robot_id}")
+    def request_order(self, robot_id, store_id, kiosk_id, order_id, uid):
+        self.get_logger().info(f"request order : {order_id} to {robot_id}")
+        
         order_request = OrderInfo.Request()
         order_request.uid = uid
         order_request.order_id = order_id
-        future = self.order_clients[robot_id].call_async(order_request)
-        future.add_done_callback(self.response_order_callback(robot_id))
+
+        location_request = LocationInfo().Request()
+        location_request.store_id = store_id
+        location_request.kiosk_id = kiosk_id
+
+        order_future = self.order_clients[robot_id].call_async(order_request)
+        order_future.add_done_callback(self.response_order_callback(robot_id))
+
+        motor_order_future = self.motor_order_clients[robot_id].call_async(location_request)
+        motor_order_future.add_done_callback(self.response_motor_order_callback(robot_id))
 
     def response_order_callback(self, robot_id):
         def response_order(future):
@@ -324,6 +339,18 @@ class RobotControl(Node):
                 self.get_logger().error(f"order call failed for {robot_id} : {e}")
 
         return response_order
+
+    def response_motor_order_callback(self, robot_id):
+        def response_order(future):
+            try:
+                response = future.result()
+                self.get_logger().info(f"motor_order response from {robot_id} : {response.success}")
+
+            except Exception as e:
+                self.get_logger().error(f"motor_order call failed for {robot_id} : {e}")
+
+        return response_order
+
 
     def request_delivery_box(self, robot_id, order_id, status):
         # status

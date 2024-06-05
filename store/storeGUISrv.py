@@ -13,13 +13,13 @@ import time
 import threading
 # import numpy as np
 
-HOST = "192.168.0.8" # yjs ethernet
+HOST = "192.168.0.210" # yjs ethernet
 # HOST = "192.168.1.102" # yjs rosteam3 wifi
 # HOST = "192.168.0.30" # jinhong
 PORT = 9023
 
-from_class1 = uic.loadUiType("selectStore.ui")[0]
-from_class2 = uic.loadUiType("store.ui")[0]
+from_class1 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/selectStore.ui")[0]
+from_class2 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/store.ui")[0]
 
 menuDic_origin = {
     'S-1': {
@@ -32,12 +32,12 @@ menuDic_origin = {
         'sprite': 10
     },
     'S-2': {
-        'americano': 50,
-        'CaramelMacchiato': 70,
-        'Cappuccino': 70,
-        'coldBrew': 50,
-        'GHBT': 100,
-        'frappuccino': 100
+        'americano': 5,
+        'CaramelMacchiato': 5,
+        'Cappuccino': 5,
+        'coldBrew': 5,
+        'GHBT': 5,
+        'frappuccino': 5
     },
     'S-3': {
         'kimbab': 100,

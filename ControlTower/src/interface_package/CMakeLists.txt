@@ -16,6 +16,7 @@ find_package(rosidl_default_generators REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
 "srv/OrderTracking.srv"
 "srv/OrderInfo.srv"
+"srv/LocationInfo.srv"
 "srv/OrderCall.srv"
 "srv/GoalArrival.srv"
 "srv/RobotCall.srv"
