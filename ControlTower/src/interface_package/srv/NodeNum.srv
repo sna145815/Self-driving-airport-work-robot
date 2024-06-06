@@ -1,3 +1,3 @@
-string arrival
+int16 nodenum
 ---
 bool success

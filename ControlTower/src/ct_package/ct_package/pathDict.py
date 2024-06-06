@@ -1,58 +1,62 @@
 # 각 노드를 4개 방향별로 지정해 놓는 방법
 wayList = [[0, 0, 0]] * 28
 wayList[0] = [0.5, 2.6, 0]      # way1 / 0
-wayList[1] = [0.5, 2.6, 80]      # way1 / 80
-wayList[2] = [0.5, 2.6, -80]      # way1 / -80
-wayList[3] = [0.5, 2.6, 160]      # way1 / 160
+wayList[1] = [0.5, 2.6, 80]     # way1 / 80
+wayList[2] = [0.5, 2.6, -80]    # way1 / -80
+wayList[3] = [0.5, 2.6, 160]    # way1 / 160
 
-wayList[4] = [0.5, 1.5, 0]    # way2 / 0
-wayList[5] = [0.5, 1.5, 80]    # way2 / 80
+wayList[4] = [0.5, 1.5, 0]      # way2 / 0
+wayList[5] = [0.5, 1.5, 80]     # way2 / 80
 wayList[6] = [0.3, 1.5, -80]    # way2 / -80 asdasd
 wayList[7] = [0.5, 1.5, 160]    # way2 / 160
 
-wayList[8] = [0.5, 0.3, 0]    # way3
-wayList[9] = [0.5, 0.3, 80]    # way3
-wayList[10] = [0.5, 0.3, -80]    # way3
-wayList[11] = [0.5, 0.3, 160]    # way3
+wayList[8] = [0.5, 0.3, 0]      # way3
+wayList[9] = [0.5, 0.3, 80]     # way3
+wayList[10] = [0.5, 0.3, -80]   # way3
+wayList[11] = [0.5, 0.3, 160]   # way3
 
-wayList[12] = [1.15, 0.3, 0]   # way4
+wayList[12] = [1.15, 0.3, 0]    # way4
 wayList[13] = [1.15, 0.3, 80]   # way4
-wayList[14] = [1.15, 0.3, -80]   # way4
-wayList[15] = [1.15, 0.3, 160]   # way4
+wayList[14] = [1.15, 0.3, -80]  # way4
+wayList[15] = [1.15, 0.3, 160]  # way4
 
-wayList[16] = [1.15, 1.3, 0]   # way5
+wayList[16] = [1.15, 1.3, 0]    # way5
 wayList[17] = [1.15, 1.3, 80]   # way5
-wayList[18] = [1.15, 1.3, -80]   # way5
+wayList[18] = [1.15, 1.3, -80]  # way5
 wayList[19] = [1.0, 1.3, 160]   # way5  asdasdasd
 
 wayList[20] = [1.15, 1.8, 0]    # way6
-wayList[21] = [1.15, 1.8, 80]    # way6
-wayList[22] = [1.15, 1.8, -80]    # way6
-wayList[23] = [1.15, 1.8, 160]    # way6
+wayList[21] = [1.15, 1.8, 80]   # way6
+wayList[22] = [1.15, 1.8, -80]  # way6
+wayList[23] = [1.15, 1.8, 160]  # way6
 
 wayList[24] = [1.15, 2.5, 0]    # way7
-wayList[25] = [1.15, 2.5, 80]    # way7
-wayList[26] = [1.15, 2.5, -80]    # way7
-wayList[27] = [1.15, 2.5, 160]    # way7
+wayList[25] = [1.15, 2.5, 80]   # way7
+wayList[26] = [1.15, 2.5, -80]  # way7
+wayList[27] = [1.15, 2.5, 160]  # way7
+
 
 # destination coordinates define
 robotXY_Dict = {
-    "R-1" : [-0.05, 2.6, 0], #28
-    "R-2" : [-0.05, 1.6, 0], #29
-    "R-3" : [-0.05, 0.6, 0]  #30
+    "R-1" : [-0.05, 2.6, 0],    #28
+    "R-2" : [-0.05, 1.6, 0],    #29
+    "R-3" : [-0.05, 0.6, 0]     #30
 }
 storeXY_Dict = {
-    "S11" : [1.5, 2.6, 160], #31
-    "S12" : [1.5, 1.7, 160], #32
-    "S21" : [1.5, 1.2, 160], #33
-    "S22" : [1.5, 0.3, 160]  #34
+    "S11" : [1.5, 2.6, 160],    #31
+    "S12" : [1.5, 1.7, 160],    #32
+    "S21" : [1.5, 1.2, 160],    #33
+    "S22" : [1.5, 0.3, 160]     #34
 }
 kioskXY_Dict = {
     "K11" : [0.3, 2.8, 80],     #35
-    "K12" : [1.0, 2.8, 80],    #36
-    "K21" : [1.0, 0.0, -80],   #37
+    "K12" : [1.0, 2.8, 80],     #36
+    "K21" : [1.0, 0.0, -80],    #37
     "K22" : [0.3, 0.0, -80]     #38
 }
+
+
+# endPoint Index
 endPoint_Dict = {
     "R-1" : 28,
     "R-2" : 29,
@@ -82,6 +86,7 @@ endPoint_Dict_2 = {
 
 
 # path define
+# orderCall path
 callPathDict = {
     "R-1" : {
         "S11" : [[0, 24]],              # 1, 7
@@ -113,6 +118,7 @@ callPathDict = {
     },
 }
 
+# delivery path
 deliPathDict = {
     "S11" : {
         "K11" : [[27, 2]],              # 7, 1
@@ -148,6 +154,7 @@ deliPathDict = {
     }
 }
 
+# return path
 returnPathDict = {
     "K11" : {
         "R-1" : [[None]],                # Direct

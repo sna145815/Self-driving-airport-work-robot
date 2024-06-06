@@ -40,7 +40,13 @@ class Robot():
         self.kiosk_id = ""
         self.order_id = ""
         self.uid = ""
+        self.startPoint = None
         self.endPoint = None
+        self.lasEndPoint = None
+        self.movingFlg = 0
+        self.pathDict = None
+
+        
     def __str__(self):
         return f"Robot(id = {self.robot_id}, store_id = {self.store_id}, kiosk_id = {self.kiosk_id}, uid = {self.uid})"
 
