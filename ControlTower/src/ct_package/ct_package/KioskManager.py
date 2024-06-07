@@ -10,9 +10,9 @@ from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
 
-HOST = '192.168.0.210'  # server(yjs) rosteam3 wifi
+HOST = '192.168.0.217'  # server(yjs) rosteam3 wifi
 HOST_DB = '192.168.0.44'  # server(kjh)
-KIOSK_PORTS = [9011, 9012]  # 포트 리스트
+KIOSK_PORTS = [9019, 9020]  # 포트 리스트
 
 class KioskManager(Node):
     def __init__(self, host, ports, dbmanager):
@@ -24,6 +24,7 @@ class KioskManager(Node):
         self.data_queue = queue.Queue()  # 데이터 처리를 위한 큐
         self.server_sockets = []
         self.client_list = []
+        self.running = True  # 노드 실행 여부 플래그
         
 
         # 각 포트에 대한 서버 소켓을 설정하고 수신 대기
@@ -40,7 +41,7 @@ class KioskManager(Node):
         self.data_thread.start()
 
     def accept_clients(self, server_socket):
-        while True:
+        while self.running:
             conn, addr = server_socket.accept()
             self.client_list.append(conn)
             client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
@@ -141,7 +142,12 @@ class KioskManager(Node):
             request.order_no = str(new_order_number)
             
             self.OrderCallClient.call_async(request)
-           
+            # rclpy.spin_until_future_complete(self, future)
+            # print(future.result().success)
+            # if future.result() is not None: 
+            #     self.get_logger().info(f'응답 받음: {future.result().success}')
+            # else:
+            #     self.get_logger().error('서비스 호출 실패')
                 
         except Exception as e:
             print(f"주문 요청 처리 중 오류: {e}")
@@ -209,6 +215,19 @@ class KioskManager(Node):
             print(f"전송 완료: {target_client.getpeername()[0]}")
         else:
             print("전송 실패: 클라이언트를 찾을 수 없음")
+            
+    def shutdown(self):
+        self.running = False  # 실행 플래그를 False로 설정하여 스레드 루프를 종료
+
+        # 서버 소켓을 닫음
+        for server_socket in self.server_sockets:
+            server_socket.close()
+
+        # 클라이언트 연결을 닫음
+        for client in self.client_list:
+            client.close()
+
+        rclpy.shutdown()
 
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
@@ -218,8 +237,13 @@ def main(args=None):
         return
     rclpy.init(args=args)
     kiosk_manager = KioskManager(HOST, KIOSK_PORTS, db_manager)  
-    rclpy.spin(kiosk_manager)
-    rclpy.shutdown()
+
+    try:
+        rclpy.spin(kiosk_manager)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt detected, shutting down...")
+    finally:
+        kiosk_manager.shutdown()
 
 if __name__ == '__main__':
     main()

@@ -27,11 +27,13 @@ setup(
             'control_tower = ct_package.control_tower:main',
             'service_client = ct_package.service_client:main',
             'drobot_control = ct_package.drobot_control:main',
-            'kiosk_manager = ct_package.KioskManager:main',
-            'store_manager = ct_package.StoreManager:main',
-            'robot_manager = ct_package.RobotManager:main',
+            'KioskManager = ct_package.KioskManager:main',
+            'StoreManager = ct_package.StoreManager:main',
+            'RobotManager = ct_package.RobotManager:main',
+            'db_manager = ct_package.db_manager:main',
             'pathDict = ct_package.pathDict:main',
             'taskManager = ct_package.taskManager:main',
+            'db_manager = ct_package.db_manager:main'
         ],
     },
 )

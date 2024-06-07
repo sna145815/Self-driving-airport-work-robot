@@ -14,8 +14,9 @@ from collections import Counter
 from tcp import TCPClient
 from Serial import SerialReceiver
 import datetime
-HOST = '192.168.1.102'
-PORT = 9052
+
+HOST = '192.168.0.210'
+PORT = 9011
 
 StoreDict = {
     "S-1": [
@@ -45,7 +46,6 @@ StoreDict = {
     ],
 }
 
-
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         recv = kwargs.pop('recv', None)
@@ -62,10 +62,12 @@ class MainWindow(QMainWindow):
         self.conn = None
         self.recv = recv
         self.response = None
+        self.departure = None
 
         # TCPClient 인스턴스 생성 및 콜백 함수 설정
         self.tcp_server = TCPClient(HOST, PORT)
         self.tcp_server.set_response_callback(self.handle_tcp_response)
+        self.tcp_server.set_status_callback(self.handle_tcp_status_response)
 
         # RFID Serial communication
         self.uid = bytes(4)
@@ -87,11 +89,27 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.get_status)
         self.timer.start()
 
-    def handle_tcp_response(self, response):
-        # Handle the received response      
+    def handle_tcp_status_response(self, response):
+        # Handle the received response
         print("tcp_response received")
-        self.response = response
-        print(f"Response: {response}")
+        id, status = response.split('-', 1)  # store_id와 status 추출
+        if id == 'S':
+        # 매장 정보인 경우
+            for menu_item in StoreDict[id]:
+                for menu_id, menu_info in menu_item.items():
+                    # 해당 매장의 모든 메뉴의 상태를 0으로 설정
+                    menu_info["status"] = "0"
+        else:
+            # 메뉴 정보인 경우
+            for store_item in StoreDict.values():
+                for menu_item in store_item:
+                    if status in menu_item:
+                        # 해당 메뉴의 상태를 0으로 설정
+                        menu_item[status]["status"] = "0"
+            print(f"Response: {response}")
+        
+    def handle_tcp_response(self, response):
+        self.departure = response
 
     def start_serial_receiver(self):
         if self.recv is None:
@@ -137,7 +155,7 @@ class MainWindow(QMainWindow):
 
     def go_store(self):
         if self.uidstatus:
-            storePage = StoreWindow(self.main_window, self.recv, self.tcp_server, self.response)  
+            storePage = StoreWindow(self.main_window, self.recv, self.tcp_server, self.departure)  
             storePage.show()
             self.main_window.hide()
 
@@ -148,16 +166,15 @@ class MainWindow(QMainWindow):
             checkPage.show()
             self.main_window.hide()
 
-
 class StoreWindow(QMainWindow):
-    def __init__(self, main_window, recv, tcp_server, department):
+    def __init__(self, main_window, recv, tcp_server, department=None):
         super().__init__(main_window)
         self.main_window = main_window
         self.store_window = uic.loadUi('./data/store.ui', self)
         self.tcp_server = tcp_server
         self.recv = recv
-        self.department = department
-        
+        self.department = department if department else "24:00"  # 기본 출발 시간 설정
+
         self.store_window.workTable.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         self.current_time = datetime.datetime.now().strftime("%H:%M")
@@ -178,17 +195,11 @@ class StoreWindow(QMainWindow):
         self.store_window.backBtn.clicked.connect(self.back)
         self.store_window.loadBtn.clicked.connect(self.add_selected_to_basket)  # 담기 버튼 시그널 변경
         
-        self.workTable.cellClicked.connect(self.cell_clicked)
+        self.store_window.workTable.cellClicked.connect(self.cell_clicked)
         self.recv.stop()
-    #     self.process_response(self.department)
-
-    # def process_response(self, response):
-    #     # "HH:MM" 형식의 시간 문자열을 받아 처리
-    #     if response:
-    #         self.current_time = response.strip()
-    #         print(f"Received time: {self.current_time}")
-    #     else:
-    #         pass
+        
+        # 기본 한식 매장 목록 표시
+        self.show_korean_stores()
 
     def go_basket(self):
         basketPage = BasketWindow(self.main_window, self.tcp_server, self.menu, self.selected_store)  
@@ -241,7 +252,7 @@ class StoreWindow(QMainWindow):
             menu_info for menu_info in store_data
             for menu_id, menu_detail in menu_info.items()
             if menu_detail.get("status") == "1" and 
-            department_time_minutes - current_time_minutes > int(menu_detail.get("require_time"))
+            (department_time_minutes - current_time_minutes > int(menu_detail.get("require_time")) or department_time_minutes == 1440)  # department_time_minutes가 1440(24:00)인 경우 모든 메뉴 포함
         ]
 
         # 테이블 초기화
@@ -264,7 +275,6 @@ class StoreWindow(QMainWindow):
                 self.store_window.workTable.setItem(row, 2, QTableWidgetItem(price))
                 self.store_window.workTable.setItem(row, 3, QTableWidgetItem(str(require_time)))  # int 형식을 문자열로 변환하여 설정
                 self.store_window.workTable.setItem(row, 4, QTableWidgetItem(description))
-
 
     def time_to_minutes(self, time_str):
         h, m = map(int, time_str.split(":"))
@@ -304,10 +314,6 @@ class StoreWindow(QMainWindow):
         self.selected_store = "S-5"
         self.update_store()
 
-
-
-
-
 class CheckWindow(QMainWindow):
     def __init__(self, main_window, tcp_server, uid):
         super().__init__(main_window)
@@ -331,7 +337,6 @@ class CheckWindow(QMainWindow):
         self.close()
         self.new_main = MainWindow(self)
 
-
 class BasketWindow(QMainWindow):
     def __init__(self, store_window, tcp_server, selected_menulist, selected_store):
         super().__init__(store_window)
@@ -344,7 +349,8 @@ class BasketWindow(QMainWindow):
         
         self.basket_window.backBtn.clicked.connect(self.back)
         self.basket_window.payBtn.clicked.connect(self.go_pay)
-        
+        self.basket_window.workTable.cellClicked.connect(self.edit_quantity)
+
         self.update_basket_table()
         
     def update_basket_table(self):
@@ -366,15 +372,36 @@ class BasketWindow(QMainWindow):
             self.basket_window.workTable.setItem(row, 0, QTableWidgetItem(store_name))  # 매장 이름
             self.basket_window.workTable.setItem(row, 1, QTableWidgetItem(menu_name))  # 메뉴 이름
             self.basket_window.workTable.setItem(row, 2, QTableWidgetItem(str(count)))  # 개수
-            self.basket_window.workTable.setItem(row, 3, QTableWidgetItem(str(price * count)))  # 가격
+            self.basket_window.workTable.setItem(row, 3, QTableWidgetItem(str(price)))  # 원래 가격
 
         self.basket_window.lineEdit.setText(str(self.total_price))  # 총합 표시
+
+    def edit_quantity(self, row, column):
+        if column == 2:  # 개수 열을 클릭한 경우
+            item = self.basket_window.workTable.item(row, column)
+            if item:
+                current_quantity = int(item.text())
+                new_quantity, ok = QInputDialog.getInt(self, "수량 수정", "새로운 수량을 입력하세요:", current_quantity, 1, 100, 1)
+                if ok and new_quantity != current_quantity:
+                    self.update_quantity(row, new_quantity)
+
+    def update_quantity(self, row, new_quantity):
+        menu_name = self.basket_window.workTable.item(row, 1).text()
+        price = self.get_menu_price(self.selected_store, menu_name)
+        self.selected_menulist[row] = f"{menu_name}/{new_quantity}"
+
+        # 테이블 및 총합 업데이트
+        self.basket_window.workTable.setItem(row, 2, QTableWidgetItem(str(new_quantity)))
+        self.basket_window.workTable.setItem(row, 3, QTableWidgetItem(str(price)))
+        self.total_price = sum(self.get_menu_price(self.selected_store, item.split('/')[0]) * int(item.split('/')[1]) for item in self.selected_menulist)
+        self.basket_window.lineEdit.setText(str(self.total_price))
 
     def go_pay(self):
         # 결제 페이지로 이동하는 함수
         self.close()
         payPage = PayWindow(self.store_window, self.selected_menulist, self.tcp_server, self.selected_store, self.total_price)
-        payPage.showFullScreen()
+        # payPage.showFullScreen()
+        payPage.show()
         self.store_window.hide()
         
     def back(self):
@@ -384,8 +411,8 @@ class BasketWindow(QMainWindow):
 
     def get_store_name(self, store_id):
         store_names = {
-            "S-1": "Starbucks",
-            "S-2": "McDonald's",
+            "S-1": "McDonald's",
+            "S-2": "Starbucks",
             "S-3": "Kimbab Heaven",
         }
         return store_names.get(store_id, "Unknown Store")
@@ -396,8 +423,6 @@ class BasketWindow(QMainWindow):
                 if menu_detail["name"] == menu_name:
                     return int(menu_detail["price"].replace(",", ""))
         return 0
-
-        
 
 class PayWindow(QMainWindow):
     def __init__(self, basket_window, menulist, tcp_server, selected_store, total_price):
@@ -418,8 +443,8 @@ class PayWindow(QMainWindow):
         self.recv.detected.connect(self.detected)
         self.pay_window.lineEdit.setText(str(self.total_price))
         self.send_enabled = True
-        self.backBtn.clicked.connect(self.back)
-        # self.payBtn.clicked.connect(self.send_data)
+        self.pay_window.backBtn.clicked.connect(self.back)
+        # self.pay_window.payBtn.clicked.connect(self.send_data)
 
         self.timer = QTimer()
         self.timer.setInterval(3000)
@@ -467,13 +492,12 @@ class PayWindow(QMainWindow):
     def back(self):
         self.pay_window.hide()
         self.recv.pause()
-        # self.basket_window.showFullScreen()
         self.basket_window.show()
         
         return
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     sys.exit(app.exec())
+
