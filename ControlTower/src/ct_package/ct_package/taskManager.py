@@ -19,7 +19,7 @@ class robotTaskManager(RobotControl):
     def __init__(self):
         super().__init__()
 
-        self.timer_period = 5.0
+        self.timer_period = 0.5
         self.timer = self.create_timer(self.timer_period, self.robotStatusCheck_timer_callback)
 
         # service server define
@@ -81,36 +81,44 @@ class robotTaskManager(RobotControl):
 
     def robotStatusCheck_timer_callback(self):
         for robot in self.robots:
-            print("robot is_active : ", robot.is_active)
+            # print("robot is_active : ", robot.is_active)
             robotId = robot.robot_id # R-1, R-2, R-3
+            self.get_logger().info(f"{robotId} is active : {robot.is_active}")
+            self.get_logger().info(f"{robotId} current_status : {robot.current_status}")
+            self.get_logger().info(f"{robotId} order_status : {robot.current_order_status}")
 
             if robot.is_active:
                 if robot.movingFlg == 0:
                     if robot.current_status == RobotStatus.HOME:                    # 집이냐(=배차주문 이냐)
                         robot.movingFlg = 1
-                        robot.lastEndPoint = robotId
+                        robot.lasEndPoint = robotId
                         robot.pathDict = callPathDict
-                        robot.startPoint = robotId
+                        # robot.startPoint = robotId
+                        robot.startPoint = robot.lasEndPoint
                         robot.endPoint = self.nav_callback(robotId, 0, robot.store_id)                # 세부목적지(K11, S11 등등) 설정 및 점유 상태 업데이트
                         self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)                 # path 계산               
                     elif (robot.current_status == RobotStatus.AT_STORE) :           # 배달이냐
                         if robot.current_order_status == OrderStatus.DELIVERY_START:            # 카드 찍혔냐
                             robot.movingFlg = 1
-                            robot.lastEndPoint = robot.endPoint
+                            robot.lasEndPoint = robot.endPoint
                             robot.pathDict = deliPathDict
-                            robot.startPoint = robot.store_id
+                            # robot.startPoint = robot.store_id
+                            robot.startPoint = robot.lasEndPoint
                             robot.endPoint = self.nav_callback(robotId, 1, robot.kiosk_id)            # 목적지 설정 및 점유 상태 업데이트
                             self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)      # path계산
                         else:
                             self.get_logger().info(f"{robotId} : Waiting RFID tag")
                     elif (robot.current_status == RobotStatus.AT_KIOSK) :           # 복귀냐
                         if robot.current_order_status == OrderStatus.DELIVERY_FINISH:           # 카드찍혔냐
+                            # robot.is_active = False
                             robot.movingFlg = 1
-                            robot.lastEndPoint = robot.endPoint
+                            robot.lasEndPoint = robot.endPoint
                             robot.pathDict = returnPathDict
-                            robot.startPoint = robot.kiosk_id
+                            # robot.startPoint = robot.kiosk_id
+                            robot.startPoint = robot.lasEndPoint
                             robot.endPoint = self.nav_callback(robotId, 2, robotId)                   # 목적지 설정 및 점유 상태 업데이트
                             self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)    # path계산
+                            robot.returning()
                         else:
                             self.get_logger().info(f"{robotId} : Waiting RFID tag")
                     else:
@@ -118,20 +126,28 @@ class robotTaskManager(RobotControl):
                 else:
                     # waypoint간 이동 상태일때는, 서비스 콜백 함수에서 처리함
                     self.get_logger().info(f"{robotId} : Still being delivered")
+
+        print("----------------------------------------------")
     
 
     def shortGoal_serviceCall(self, robotId, nodeNum):
+        print("-------------------  service call start------------------")
         if robotId == "R-1":
-            self.shortGoalClient1.nodenum = nodeNum
+            self.reqShortGoal1.nodenum = nodeNum
             self.shortGoalClient1.call_async(self.reqShortGoal1)
+            self.get_logger().info(f"{robotId} : request complete")
         elif robotId == "R-2":
-            self.shortGoalClient2.nodenum = nodeNum
+            self.reqShortGoal2.nodenum = nodeNum
             self.shortGoalClient2.call_async(self.reqShortGoal2)
+            self.get_logger().info(f"{robotId} : request complete")
         elif robotId == "R-3":
-            self.shortGoalClient3.nodenum = nodeNum
+            self.reqShortGoal3.nodenum = nodeNum
             self.shortGoalClient3.call_async(self.reqShortGoal3)
+            self.get_logger().info(f"{robotId} : request complete")
         else:
             self.get_logger().info(f"wrong Robot Id is entered...")
+        
+        print("-------------------  service call end------------------")
 
 
     # robot1이 노드이동을 완료했을때, req날라오면 실행되는함수
@@ -358,6 +374,7 @@ class robotTaskManager(RobotControl):
                 if self.node[num] == 0: # 점유상태 아니면
                     step = step + 1
                     # shortGoal = wayList[nodeNum]
+                    print("nodeNum : ", nodeNum)
                     print("WayPoint name : ", num)
                     print("path step : ", step)
                     self.node[num] = 1 # 목표한 waypoint 점유 플래그 set

@@ -42,7 +42,7 @@ class Robot():
         self.uid = ""
         self.startPoint = None
         self.endPoint = None
-        self.lasEndPoint = None
+        self.lastEndPoint = None
         self.movingFlg = 0
         self.pathDict = None
 
@@ -307,7 +307,9 @@ class RobotControl(Node):
             elif status == OrderStatus.DELIVERY_FINISH:
                 robot.current_order_status = status
                 self.request_delivery_box(robot.robot_id, robot.order_id, 1)
-
+                response.success = True
+            elif status == OrderStatus.DELIVERY_YET:
+                robot.current_order_status = status
                 response.success = True
             else:
                 self.get_logger().debug(f"Invalid status received: {status} for robot_id: {robot.robot_id}")
