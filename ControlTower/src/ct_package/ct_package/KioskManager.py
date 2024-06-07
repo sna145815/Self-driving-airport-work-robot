@@ -1,5 +1,6 @@
 import socket
 import threading
+import queue
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -8,23 +9,45 @@ from rclpy.node import Node
 from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
-HOST = '192.168.1.100' # server(yjs) rosteam3 wifi
-# HOST = '192.168.0.210' # server(yjs) ethernet
-HOST_DB = '192.168.1.105' # server(kjh)
-KIOSK_PORT = 9052
+
+HOST = '192.168.0.217'  # server(yjs) rosteam3 wifi
+HOST_DB = '192.168.0.15'  # server(kjh)
+KIOSK_PORTS = [9011, 9012]  # 포트 리스트
 
 class KioskManager(Node):
-    def __init__(self, host, port, dbmanager):
+    def __init__(self, host, ports, dbmanager):
         super().__init__('kiosk_manager_node')
         self.host = host
-        self.port = port
-        self.client_list = []
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.ports = ports
         self.db_manager = dbmanager
         self.OrderCallClient = self.create_client(OrderCall, '/order_call')
+        self.data_queue = queue.Queue()  # 데이터 처리를 위한 큐
+        self.server_sockets = []
+        self.client_list = []
         
-    
-    def handle_client(self, conn, addr):    # client 연결되면 실행되는 함수
+
+        # 각 포트에 대한 서버 소켓을 설정하고 수신 대기
+        for port in self.ports:
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.bind((self.host, port))
+            server_socket.listen()
+            self.server_sockets.append(server_socket)
+            thread = threading.Thread(target=self.accept_clients, args=(server_socket,))
+            thread.start()
+        
+        # 데이터 처리 스레드 시작
+        self.data_thread = threading.Thread(target=self.process_data)
+        self.data_thread.start()
+
+    def accept_clients(self, server_socket):
+        while True:
+            conn, addr = server_socket.accept()
+            self.client_list.append(conn)
+            client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+            client_thread.start()
+            print(f"{addr}에 대한 스레드 시작됨")
+            
+    def handle_client(self, conn, addr):
         print(f"{addr}에서 연결됨")
         try:
             with conn:
@@ -34,74 +57,38 @@ class KioskManager(Node):
                         if not recv:
                             break
                         print(f"{addr}로부터 수신: {recv.decode()}")
-                        cmd, data = recv.decode().split(',', 1)
-                        if cmd == 'OR':
-                            self.order_request(data, conn)
-                        elif cmd == 'GD':
-                            d_time = self.get_departure_time(data)
-                            msg = "GD,"+ d_time
-                            self.client_send(msg, conn)
-                        elif cmd == 'OI':
-                            orders = self.order_select(data)
-                            if orders:
-                                msg = '/'.join([f"{order[0]},{order[1]}" for order in orders])
-                                msg = "OI,"+msg
-                                self.client_send(msg, conn)
-                            else:
-                                self.client_send("No orders found", conn)
+                        # 받은 데이터를 큐에 넣음
+                        self.data_queue.put((recv.decode(), conn))
                     except ConnectionResetError:
                         break
         except Exception as e:
             print(e)
-        # finally:
-        #     print(f"{addr} 연결 해제")
-        #     if conn in self.client_list:
-        #         self.clients.remove(conn)
-        #     conn.close()
-
-    def start_server(self):
-        try:
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen()
-            print(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
-            while True:
-                # 클라이언트 연결 정보
-                conn, addr = self.server_socket.accept()
-                self.client_list.append(conn)
-                self.client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
-                self.client_thread.start()
-                print(f"{addr}에 대한 스레드 시작됨")
-        except Exception as e:
-            print(f"서버 에러: {e}")
         finally:
-            self.close_server()
+        # 클라이언트 연결이 끊겼을 때 클라이언트 리스트에서 제거
+            if conn in self.client_list:
+                self.client_list.remove(conn)
 
-    def close_server(self):
-        print("키오스크 서버 소켓 닫는 중")
-        for conn in self.client_list:
-            conn.close()
-        self.server_socket.close()
-        print("키오스크 서버 소켓 닫힘")
-
-    def get_departure_time(self, uid):
-        try:
-            query = """
-                SELECT B.Departure_time
-                FROM Passenger A
-                JOIN Schedule B ON A.Schedule_ID = B.ID
-                WHERE A.UID = %s;
-            """
-            params = (uid,)
-            result = self.db_manager.fetch_query(query, params)
-            if result:
-                departure_time = result[0][0]
-                return departure_time
-            else:
-                print("해당 UID에 대한 출발 시간이 없음")
-                return None
-        except Exception as e:
-            print(f"UID {uid}에 대한 출발 시간 가져오기 오류: {e}")
-            return None
+    def process_data(self):
+        while True:
+            data, conn = self.data_queue.get()
+            try:
+                cmd, data = data.split(',', 1)
+                if cmd == 'OR':
+                    self.order_request(data, conn)
+                elif cmd == 'GD':
+                    d_time = self.get_departure_time(data)
+                    msg = "GD," + d_time
+                    self.client_send(msg, conn)
+                elif cmd == 'OI':
+                    orders = self.order_select(data)
+                    if orders:
+                        msg = '/'.join([f"{order[0]},{order[1]}" for order in orders])
+                        msg = "OI," + msg
+                        self.client_send(msg, conn)
+                    else:
+                        self.client_send("No orders found", conn)
+            except Exception as e:
+                print(f"데이터 처리 중 오류: {e}")
 
     def order_request(self, data, conn):
         try:
@@ -154,9 +141,8 @@ class KioskManager(Node):
             request.order_no = str(new_order_number)
             
             future = self.OrderCallClient.call_async(request)
-            print(future)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
-            
+            # rclpy.spin_until_future_complete(self, future)
+            print(future.result().success)
             if future.result() is not None: 
                 self.get_logger().info(f'응답 받음: {future.result().success}')
             else:
@@ -168,16 +154,28 @@ class KioskManager(Node):
         # finally:
         #     self.client_thread.join()
         #     self.client_list = []
-            
-    
-    def get_menu_id(self, menuname):
-        query = "SELECT ID FROM Menu WHERE Name = %s;"
-        result = self.db_manager.fetch_query(query, (menuname,))
-        if result:
-            return result[0][0]
-        else:
-            print(f"'{menuname}' 이름의 메뉴를 찾을 수 없음.")
+
+    def get_departure_time(self, uid):
+        # 출발 시간 조회 처리 구현
+        try:
+            query = """
+                SELECT B.Departure_time
+                FROM Passenger A
+                JOIN Schedule B ON A.Schedule_ID = B.ID
+                WHERE A.UID = %s;
+            """
+            params = (uid,)
+            result = self.db_manager.fetch_query(query, params)
+            if result:
+                departure_time = result[0][0]
+                return departure_time
+            else:
+                print("해당 UID에 대한 출발 시간이 없음")
+                return None
+        except Exception as e:
+            print(f"UID {uid}에 대한 출발 시간 가져오기 오류: {e}")
             return None
+
     def order_select(self, uid):
         try:
             query = """
@@ -191,30 +189,42 @@ class KioskManager(Node):
         except Exception as e:
             print(f"UID {uid}에 대한 주문 선택 중 오류: {e}")
             return None
+    
+    def get_menu_id(self, menuname):
+        query = "SELECT ID FROM Menu WHERE Name = %s;"
+        result = self.db_manager.fetch_query(query, (menuname,))
+        if result:
+            return result[0][0]
+        else:
+            print(f"'{menuname}' 이름의 메뉴를 찾을 수 없음.")
+            return None
+
     def client_send(self, msg, conn):
-        target_client = next((client for client in self.client_list if client.getpeername()[0] == conn.getpeername()[0]), None)
+        target_client = None
+        for client in self.client_list:
+            try:
+                if client.getpeername()[0] == conn.getpeername()[0]:
+                    target_client = client
+                    break
+            except OSError:
+                continue
+
         if target_client:
             target_client.sendall(msg.encode())
-            print(target_client.getpeername()[0])
-            print("전송"*10)
-            
+            print(f"전송 완료: {target_client.getpeername()[0]}")
+        else:
+            print("전송 실패: 클라이언트를 찾을 수 없음")
+
 def main(args=None):
     db_manager = DBManager(HOST_DB, 'potato', '1234', 'prj')
-    connection = db_manager.create_connection("KioskServer")
+    connection = db_manager.create_connection()
     if not connection:
         print("Failed to connect to the database.")
         return
     rclpy.init(args=args)
-    # KioskManager 노드 생성
-    kiosk_manager = KioskManager(HOST, KIOSK_PORT, db_manager)  
-    # 서버 시작
-    kiosk_manager.start_server()
+    kiosk_manager = KioskManager(HOST, KIOSK_PORTS, db_manager)  
     rclpy.spin(kiosk_manager)
-    # 노드 종료
-    kiosk_manager.close_server()
-    kiosk_manager.destroy_node()
     rclpy.shutdown()
-def test():
-    pass
+
 if __name__ == '__main__':
     main()

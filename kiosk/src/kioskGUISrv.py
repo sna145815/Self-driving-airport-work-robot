@@ -14,8 +14,8 @@ from collections import Counter
 from tcp import TCPClient
 from Serial import SerialReceiver
 import datetime
-HOST = '192.168.0.210'
-PORT = 9054
+HOST = '192.168.1.102'
+PORT = 9052
 
 StoreDict = {
     "S-1": [
