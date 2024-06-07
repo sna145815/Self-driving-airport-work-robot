@@ -91,19 +91,19 @@ class robotTaskManager(RobotControl):
                 if robot.movingFlg == 0:
                     if robot.current_status == RobotStatus.HOME:                    # 집이냐(=배차주문 이냐)
                         robot.movingFlg = 1
-                        robot.lasEndPoint = robotId
+                        robot.lastEndPoint = robotId
                         robot.pathDict = callPathDict
                         # robot.startPoint = robotId
-                        robot.startPoint = robot.lasEndPoint
+                        robot.startPoint = robot.lastEndPoint
                         robot.endPoint = self.nav_callback(robotId, 0, robot.store_id)                # 세부목적지(K11, S11 등등) 설정 및 점유 상태 업데이트
                         self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)                 # path 계산               
                     elif (robot.current_status == RobotStatus.AT_STORE) :           # 배달이냐
                         if robot.current_order_status == OrderStatus.DELIVERY_START:            # 카드 찍혔냐
                             robot.movingFlg = 1
-                            robot.lasEndPoint = robot.endPoint
+                            robot.lastEndPoint = robot.endPoint
                             robot.pathDict = deliPathDict
                             # robot.startPoint = robot.store_id
-                            robot.startPoint = robot.lasEndPoint
+                            robot.startPoint = robot.lastEndPoint
                             robot.endPoint = self.nav_callback(robotId, 1, robot.kiosk_id)            # 목적지 설정 및 점유 상태 업데이트
                             self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)      # path계산
                         else:
@@ -112,10 +112,10 @@ class robotTaskManager(RobotControl):
                         if robot.current_order_status == OrderStatus.DELIVERY_FINISH:           # 카드찍혔냐
                             # robot.is_active = False
                             robot.movingFlg = 1
-                            robot.lasEndPoint = robot.endPoint
+                            robot.lastEndPoint = robot.endPoint
                             robot.pathDict = returnPathDict
                             # robot.startPoint = robot.kiosk_id
-                            robot.startPoint = robot.lasEndPoint
+                            robot.startPoint = robot.lastEndPoint
                             robot.endPoint = self.nav_callback(robotId, 2, robotId)                   # 목적지 설정 및 점유 상태 업데이트
                             self.gotoGoal(robotId, robot.pathDict, robot.startPoint, robot.endPoint)    # path계산
                             robot.returning()
@@ -228,6 +228,7 @@ class robotTaskManager(RobotControl):
     def nav_callback(self, robotId, cmd, endPointName):
         # 최종 목적지 도착할때 까지 계속 호출해야됨
         print("---------------nav callback start-------------------------")
+        endGoal = None
         try:
             if cmd == 0: # 배차
                 print("배차 상세 목적지 설정")
@@ -277,7 +278,7 @@ class robotTaskManager(RobotControl):
                         self.goalNode["K12"] = 1
                         endGoal = "K12"
                     else:
-                        pass
+                        self.get_logger().info(f"{robotId}, {endPointName}: no delivery goal, wait")
                 elif endPointName == "K-2":
                     if self.goalNode["K21"] == 0:
                         self.goalNode["K21"] = 1
@@ -286,7 +287,7 @@ class robotTaskManager(RobotControl):
                         self.goalNode["K22"] = 1
                         endGoal = "K22"
                     else:
-                        pass
+                        self.get_logger().info(f"{robotId}, {endPointName}: no delivery goal, wait")
                 else:
                     print("Invalid Kiosk ID entered")
             elif cmd == 2: # 복귀

@@ -52,9 +52,9 @@ class StoreManager(Node):
     
     # 로봇이 매장에 도착했다는 알람을 받는 ros service
     def store_callback_service(self, request, response):    # status, orderid
-        self.get_logger().info("store_callback_start!!!")
-        self.get_logger().info('status : ', request.status)
-        self.get_logger().info('orderId : ', request.order_id)
+        # self.get_logger().info("store_callback_start!!!")
+        # self.get_logger().info('status : ', request.status)
+        # self.get_logger().info('orderId : ', request.order_id)
 
         try:
             if request.order_id:
@@ -72,28 +72,31 @@ class StoreManager(Node):
                 result = self.db_manager.fetch_query(query, [orderNo])
 
                 if result:
-                    self.get_logger().info("result : ", result)
+                    # self.get_logger().info("result : ", result)
                     ip = result[0][0]
                     robotID = result[0][1]
 
                     msg = f"DS,{orderNo},{robotStatus},{robotID}"
 
                     store_ip = next((client for client in self.client_list if client.getpeername()[0] == ip), None)
-                    self.get_logger().info(msg)
+                    # self.get_logger().info(msg)
 
                     if store_ip:
                         store_ip.sendall(msg.encode())
                     else:
-                        self.get_logger().info("매장 접속 안됨")
+                        # self.get_logger().info("매장 접속 안됨")
+                        pass
                 else:
-                    self.get_logger().info("DB결과 없음")
+                    # self.get_logger().info("DB결과 없음")
+                    pass
             else:
                 response.success = False
 
-            self.get_logger().info("--------------------------")
+            # self.get_logger().info("--------------------------")
 
         except Exception as e:
-            self.get_logger().error("store_callback Error : ", e)
+            # self.get_logger().error("store_callback Error : ", e)
+            pass
         except KeyboardInterrupt:
             pass
 

@@ -50,7 +50,7 @@ class RobotManager(Node):
         self.arrival_srv = self.create_service(GoalArrival, 'goal_arrival', self.arrival_callback)
         self.delivery_box_srv = self.create_service(DeliveryBox, 'delivery_box', self.delivery_box_callback)
         self.store_alarm_cli = self.create_client(StoreAlarm, 'store_alarm')
-        #self.setup_service_clients()
+        self.setup_service_clients()
         self.setup_topic()
 
     def setup_topic(self):
