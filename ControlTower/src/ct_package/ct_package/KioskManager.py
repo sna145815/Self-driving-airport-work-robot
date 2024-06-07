@@ -10,8 +10,8 @@ from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
 
-HOST = '192.168.0.217'  # server(yjs) rosteam3 wifi
-HOST_DB = '192.168.0.15'  # server(kjh)
+HOST = '192.168.0.210'  # server(yjs) rosteam3 wifi
+HOST_DB = '192.168.0.44'  # server(kjh)
 KIOSK_PORTS = [9011, 9012]  # 포트 리스트
 
 class KioskManager(Node):
@@ -140,13 +140,8 @@ class KioskManager(Node):
             request.ip = str(store_ip[0][0]) # yjs ethernet
             request.order_no = str(new_order_number)
             
-            future = self.OrderCallClient.call_async(request)
-            # rclpy.spin_until_future_complete(self, future)
-            print(future.result().success)
-            if future.result() is not None: 
-                self.get_logger().info(f'응답 받음: {future.result().success}')
-            else:
-                self.get_logger().error('서비스 호출 실패')
+            self.OrderCallClient.call_async(request)
+           
                 
         except Exception as e:
             print(f"주문 요청 처리 중 오류: {e}")

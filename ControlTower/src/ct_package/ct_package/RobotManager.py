@@ -14,8 +14,8 @@ from interface_package.srv import StoreAlarm
 from interface_package.srv import DeliveryBox
 from interface_package.srv import RobotDispatch
 
-HOST_DB = '192.168.0.15'
-HOST = '192.168.0.15'
+HOST_DB = '192.168.0.44'
+HOST = '192.168.0.210'
 PORT = 9035
 
 class RobotManager(Node):

@@ -15,13 +15,16 @@ import threading
 
 HOST = "192.168.0.210" # yjs ethernet
 # HOST = "192.168.1.102" # yjs rosteam3 wifi
-# HOST = "192.168.0.30" # jinhong
+# HOST = "192.168.0.44" # jinhong ethernet
 PORT = 9023
 
-from_class1 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/selectStore.ui")[0]
-from_class2 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/store.ui")[0]
+# from_class1 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/selectStore.ui")[0]
+# from_class2 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/store.ui")[0]
 
-menuDic_origin = {
+from_class1 = uic.loadUiType("selectStore.ui")[0]
+from_class2 = uic.loadUiType("store.ui")[0]
+
+menuDic = {
     'S-1': {
         'cheeseBurger': 5,
         'bigMac': 150,
@@ -33,11 +36,11 @@ menuDic_origin = {
     },
     'S-2': {
         'americano': 5,
-        'CaramelMacchiato': 5,
-        'Cappuccino': 5,
-        'coldBrew': 5,
-        'GHBT': 5,
-        'frappuccino': 5
+        'CaramelMacchiato': 30,
+        'Cappuccino': 30,
+        'coldBrew': 30,
+        'GHBT': 40,
+        'frappuccino': 30
     },
     'S-3': {
         'kimbab': 100,
@@ -46,34 +49,6 @@ menuDic_origin = {
         'beefKimbab': 200,
         'porkKimbab': 200,
         'shrimpKimbab': 170
-    },
-}
-
-menuDic = {
-    'S-1': {
-        'cheeseBurger': 5,
-        'bigMac': 5,
-        'beefSnackWrap': 5,
-        'McNuggets': 5,
-        'coffee': 5,
-        'coke': 5,
-        'sprite': 5
-    },
-    'S-2': {
-        'americano': 5,
-        'CaramelMacchiato': 5,
-        'Cappuccino': 5,
-        'coldBrew': 5,
-        'GHBT': 5,
-        'frappuccino': 5
-    },
-    'S-3': {
-        'kimbab': 5,
-        'tunaKimbab': 5,
-        'cheeseKimbab': 5,
-        'beefKimbab': 5,
-        'porkKimbab': 5,
-        'shrimpKimbab': 5
     },
 }
 

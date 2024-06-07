@@ -14,9 +14,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
 # HOST = '192.168.1.102' # server(yjs) rosteam3 wifi
-HOST = '192.168.0.15' # server(yjs) ethernet
+HOST = '192.168.0.210' # server(yjs) ethernet
 # HOST_DB = '192.168.1.105' # DB manager kjh rosteam3 wifi
-HOST_DB = '192.168.0.15' # DB manager kjh rosteam3 wifi
+HOST_DB = '192.168.0.44' # DB manager kjh rosteam3 wifi
 STORE_PORT = 9023
 
 class StoreManager(Node):
@@ -101,7 +101,7 @@ class StoreManager(Node):
 
 
     def order_call_callback_service(self, request, response):
-        self.get_logger().info("order_call_callback_start!!!")
+        # self.get_logger().info("order_call_callback_start!!!")
         try:
             if request.ip:
                 response.success = True
@@ -113,8 +113,8 @@ class StoreManager(Node):
 
                     store_ip = request.ip
                     order_number = request.order_no
-                    self.get_logger().info(type(order_number))
-                    self.get_logger().info("orderNo : ", order_number)
+                    # self.get_logger().info(type(order_number))
+                    # self.get_logger().info("orderNo : ", order_number)
 
                     query = """
                         SELECT A.OrderNumber, 
@@ -130,38 +130,41 @@ class StoreManager(Node):
                     # self.get_logger().info("result : ", result)
 
                     if result:
-                        self.get_logger().info("result : ", result)
+                        # self.get_logger().info("result : ", result)
                         order_number = result[0][0]
                         menus = [f"{row[1]}/{row[2]}" for row in result]
                         cnt = len(menus)
                         msg = f"OS,{order_number},{cnt},{','.join(menus)}"
                         store_ip = next((client for client in self.client_list if client.getpeername()[0] == store_ip), None)
-                        self.get_logger().info(msg)
+                        # self.get_logger().info(msg)
 
                         if store_ip:
                             store_ip.sendall(msg.encode())
                         else:
-                            self.get_logger().info("매장 접속 안됨")
+                            # self.get_logger().info("매장 접속 안됨")
+                            pass
                     else:
-                        self.get_logger().info("DB결과 없음")
+                        # self.get_logger().info("DB결과 없음")
+                        pass
                 except Exception as e:
-                        self.get_logger().error(f"Error fetching order details: {e}")
+                        # self.get_logger().error(f"Error fetching order details: {e}")
                         return None
             else:
                 response.success = False
             
-            self.get_logger().info(response)
-            self.get_logger().info("--------------------------")
+            # self.get_logger().info(response)
+            # self.get_logger().info("--------------------------")
             
             return response
         except Exception as e:
-            self.get_logger().error("Error message : ", e)
+            # self.get_logger().error("Error message : ", e)
+            pass
         except KeyboardInterrupt:
             self.close_server()
 
     
     def handle_client(self, conn, addr):
-        self.get_logger().info(f"{addr} 연결됨")
+        # self.get_logger().info(f"{addr} 연결됨")
         try:
             with conn:
                 while True:
@@ -169,28 +172,28 @@ class StoreManager(Node):
                         data = conn.recv(1024)
                         if not data:
                             break
-                        self.get_logger().info(f"{addr}로부터 수신: {data.decode()}")
+                        # self.get_logger().info(f"{addr}로부터 수신: {data.decode()}")
                         cmd, data = data.decode().split(',', 1)
                         data_list = data.split(',')
-                        self.get_logger().info(data_list)
+                        # self.get_logger().info(data_list)
                         if cmd == 'DR':
-                            self.get_logger().info(f"{data_list[0]} 매장에서 / {data_list[1]} 주문 배차 요청!")
+                            # self.get_logger().info(f"{data_list[0]} 매장에서 / {data_list[1]} 주문 배차 요청!")
                             self.robot_call(data_list[1])
                         elif cmd == "CS":
-                            self.get_logger().info("CS호출")
+                            # self.get_logger().info("CS호출")
                             self.order_status(data,0)
                         elif cmd == 'SS':
-                            self.get_logger().info("SS호출")
+                            # self.get_logger().info("SS호출")
                             self.store_status(data_list[0],data_list[1])
                         elif cmd == 'MS':
-                            self.get_logger().info("MS호출")
+                            # self.get_logger().info("MS호출")
                             self.menu_status(data_list[0],data_list[1])
                         data_list.clear()
-                        self.get_logger().info("-------------------------")
+                        # self.get_logger().info("-------------------------")
                     except ConnectionResetError:
                         break
         except KeyboardInterrupt:
-            self.get_logger().error("keyboard exit")
+            # self.get_logger().error("keyboard exit")
             self.close_server()
         finally:
             self.close_server()
@@ -203,25 +206,26 @@ class StoreManager(Node):
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen()
-            self.get_logger().info(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
+            # self.get_logger().info(f"서버 시작됨, {self.host}:{self.port}에서 대기 중")
 
             while True:
                 conn, addr = self.server_socket.accept()
                 self.client_list.append(conn)
                 client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
                 client_thread.start()
-                self.get_logger().info(f"{addr}에 대한 스레드 시작됨")
+                # self.get_logger().info(f"{addr}에 대한 스레드 시작됨")
         except Exception as e:
-            self.get_logger().error(f"서버 에러: {e}")
+            # self.get_logger().error(f"서버 에러: {e}")
+            pass
         finally:
             self.close_server()
 
     def close_server(self):
-        self.get_logger().info("스토어 서버 소켓 닫는 중")
+        # self.get_logger().info("스토어 서버 소켓 닫는 중")
         for conn in self.client_list:
             conn.close()
         self.server_socket.close()
-        self.get_logger().info("스토어 서버 소켓 닫힘")
+        # self.get_logger().info("스토어 서버 소켓 닫힘")
 
     def order_status(self,param,status):
         if status == 0:
@@ -265,14 +269,14 @@ class StoreManager(Node):
             
 
         except Exception as e:
-            self.get_logger().error(f"상점 상태 업데이트 중 오류 발생: {e}")
+            # self.get_logger().error(f"상점 상태 업데이트 중 오류 발생: {e}")
             return None
         
     def robot_call(self, order_number):          
         # msg = String()
         # msg.data = order_number
         # self.robotcall_publisher.publish(msg)
-        self.get_logger().info("robot call")
+        # self.get_logger().info("robot call")
 
         self.req_robotDispatch.order_id = order_number
         # future = self.robotDispatch.call_async(self.req_robotDispatch)
@@ -314,7 +318,7 @@ class StoreManager(Node):
             self.k_send(msg)
 
         except Exception as e:
-            self.get_logger().error(f"상점 상태 업데이트 중 오류 발생: {e}")
+            # self.get_logger().error(f"상점 상태 업데이트 중 오류 발생: {e}")
             return None
 
     def k_send(self,msg):
