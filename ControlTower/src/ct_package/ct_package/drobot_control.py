@@ -216,7 +216,7 @@ class RobotControl(Node):
                 response.success = False
                 return response
 
-            selected_robot.is_active = True
+
             selected_robot.order_id = order_id
             selected_robot.kiosk_id = kiosk_id
             selected_robot.store_id = store_id
@@ -351,9 +351,11 @@ class RobotControl(Node):
     def response_motor_order_callback(self, robot_id):
         def response_order(future):
             try:
-                response = future.result()
-                self.get_logger().info(f"motor_order response from {robot_id} : {response.success}")
-
+                for robot in self.robots:
+                    if robot.robot_id == robot_id:
+                        robot.is_active = True
+                        response = future.result()
+                        self.get_logger().info(f"motor_order response from {robot_id} : {response.success}")
             except Exception as e:
                 self.get_logger().error(f"motor_order call failed for {robot_id} : {e}")
 

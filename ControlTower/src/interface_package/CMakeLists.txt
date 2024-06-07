@@ -27,7 +27,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 "msg/Navgoal.msg"
 "msg/Navfeedback.msg"
 "msg/Navresult.msg"
-
 )
 
 if(BUILD_TESTING)
