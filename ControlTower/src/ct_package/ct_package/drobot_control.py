@@ -40,13 +40,15 @@ class Robot():
         self.kiosk_id = ""
         self.order_id = ""
         self.uid = ""
-        self.startPoint = None
-        self.endPoint = None
-        self.lastEndPoint = None
+        self.startPointXY = None
+        self.endPoint = None    # str ex) "S11"
+        self.endPointXY = None
+        self.lastEndPointXY = None
         self.movingFlg = 0
         self.pathDict = None
         self.wait = 0
         self.currentNode = ()
+        self.lastEndPointName = None
 
         
     def __str__(self):

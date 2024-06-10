@@ -1,14 +1,5 @@
-import sys
-import os
-
 import rclpy
 from rclpy.node import Node
-
-from ct_package.pathDict import callPathDict
-from ct_package.pathDict import deliPathDict
-from ct_package.pathDict import returnPathDict
-from ct_package.pathDict import endPoint_Dict
-
 
 # RobotControl Node import
 from ct_package.drobot_control import RobotControl, RobotStatus, OrderStatus
@@ -16,7 +7,6 @@ from interface_package.srv import NodeNum
 
 # A-star class import
 from ct_package.A_Star import aStar
-
 
 class robotTaskManager(RobotControl):
     def __init__(self):
@@ -46,6 +36,20 @@ class robotTaskManager(RobotControl):
         # self.robot_1.movingFlg
 
         self.cnt = 0
+
+        self.goalNode = {
+            "S11" : 0,
+            "S12" : 0,
+            "S21" : 0,
+            "S22" : 0,
+            "K11" : 0,
+            "K12" : 0,
+            "K21" : 0,
+            "K22" : 0,
+            "R1"  : 1,
+            "R2"  : 1,
+            "R3"  : 1,
+        }
 
     def mazeInit(self):
         # 5x9
@@ -100,53 +104,78 @@ class robotTaskManager(RobotControl):
                 if robot.movingFlg == 0:
                     if robot.current_status == RobotStatus.HOME:                    # 집이냐(=배차주문 이냐)
                         robot.movingFlg = 1
-                        robot.lastEndPoint = self.xyAlias[robotId]
+                        robot.lastEndPointXY = self.xyAlias[robotId]
 
-                        robot.startPoint = robot.lastEndPoint
+                        robot.startPointXY = robot.lastEndPointXY
                         robot.endPoint = self.nav_callback(0, robot.store_id)            # 세부목적지(K11, S11 등등) 설정 및 점유 상태 업데이트
+                        robot.endPointXY = self.xyAlias[robot.endPoint]
+
+                        self.get_logger().info(f"{robotId} start : {robot.startPointXY}")
+                        self.get_logger().info(f"{robotId} end : {robot.endPointXY}")
                         # Astar
-                        pathList = self.aStar.calculatePath(self.maze, robot.startPoint, robot.endPoint)
+                        self.get_logger().info(f"{robotId} maze : {self.maze}")
+                        pathList = self.aStar.calculatePath(self.maze, robot.startPointXY, robot.endPointXY)
+                        self.get_logger().info(f"{robotId} path : {pathList[1]}")
+                        
                         if pathList is not None:
+                            self.get_logger().info(f"pathList len : {len(pathList)}")
+                            self.get_logger().info(f"pathList : {pathList[0]}")
                             nextNode = pathList[1]
-                            self.shortGoal_serviceCall(robotId, robot.startPoint, nextNode)
-                            self.updateMazeSet(nextNode)
-                            self.updateMazeClear(robot.startPoint)
+                            self.get_logger().info(f"{robotId} nextNode : {nextNode}")
+                            self.shortGoal_serviceCall(robotId, robot.startPointXY, nextNode)
+                            # self.updateMazeSet(nextNode)
+                            # self.updateMazeClear(robot.startPointXY)
                         else:
+                            self.get_logger().info(f"{robotId} path is None")
                             robot.movingFlg = 0
                     elif (robot.current_status == RobotStatus.AT_STORE) :           # 배달이냐
                         if robot.current_order_status == OrderStatus.DELIVERY_START:            # 카드 찍혔냐
                             robot.movingFlg = 1
-                            robot.lastEndPoint = robot.endPoint
+                            robot.lastEndPointXY = robot.endPointXY
+                            # 이전 스토어 위치 점유 여부 클리어
+                            self.goalNode[robot.endPoint] = 0
 
-                            robot.startPoint = robot.lastEndPoint
+                            robot.startPointXY = robot.lastEndPointXY
                             robot.endPoint = self.nav_callback(1, robot.kiosk_id)            # 목적지 설정 및 점유 상태 업데이트
+                            robot.endPointXY = self.xyAlias[robot.endPoint]
                             # Astar
-                            pathList = self.aStar.calculatePath(self.maze, robot.startPoint, robot.endPoint)
+                            pathList = self.aStar.calculatePath(self.maze, robot.startPointXY, robot.endPointXY)
+                            
                             if pathList is not None:
+                                self.get_logger().info(f"pathList len : {len(pathList)}")
+                                self.get_logger().info(f"pathList : {pathList[0]}")
                                 nextNode = pathList[1]
-                                self.shortGoal_serviceCall(robotId, robot.startPoint, nextNode)
-                                self.updateMazeSet(nextNode)
-                                self.updateMazeClear(robot.startPoint)
+                                self.shortGoal_serviceCall(robotId, robot.startPointXY, nextNode)
+                                # self.updateMazeSet(nextNode)
+                                # self.updateMazeClear(robot.startPoint)
                             else:
+                                self.get_logger().info(f"{robotId} path is None")
                                 robot.movingFlg = 0
                         else:
                             self.get_logger().info(f"{robotId} : Waiting RFID tag")
                     elif (robot.current_status == RobotStatus.AT_KIOSK) :           # 복귀냐
                         if robot.current_order_status == OrderStatus.DELIVERY_FINISH:           # 카드찍혔냐
                             robot.movingFlg = 1
-                            robot.lastEndPoint = robot.endPoint
+                            robot.lastEndPointXY = robot.endPointXY
+                            # 이전 키오스크 위치 점유 여부 클리어
+                            self.goalNode[robot.endPoint] = 0
 
-                            robot.startPoint = robot.lastEndPoint
+                            robot.startPointXY = robot.lastEndPointXY
                             robot.endPoint = self.nav_callback(2, robotId)                   # 목적지 설정 및 점유 상태 업데이트
+                            robot.endPointXY = self.xyAlias[robot.endPoint]
                             # Astar
-                            pathList = self.aStar.calculatePath(self.maze, robot.startPoint, robot.endPoint)
+                            pathList = self.aStar.calculatePath(self.maze, robot.startPointXY, robot.endPointXY)
+                            
                             if pathList is not None:
+                                self.get_logger().info(f"pathList len : {len(pathList)}")
+                                self.get_logger().info(f"pathList : {pathList[0]}")
                                 nextNode = pathList[1]
-                                self.shortGoal_serviceCall(robotId, robot.startPoint, nextNode)
-                                self.updateMazeSet(nextNode)
-                                self.updateMazeClear(robot.startPoint)
+                                self.shortGoal_serviceCall(robotId, robot.startPointXY, nextNode)
+                                # self.updateMazeSet(nextNode)
+                                # self.updateMazeClear(robot.startPoint)
                                 robot.returning()
                             else:
+                                self.get_logger().info(f"{robotId} path is None")
                                 robot.movingFlg = 0
                         else:
                             self.get_logger().info(f"{robotId} : Waiting RFID tag")
@@ -159,15 +188,18 @@ class robotTaskManager(RobotControl):
                         if self.cnt > 6:
                             self.cnt = 0
                             # astar ㄱㄱ
-                            pathList = self.aStar.calculatePath(self.maze, robot.currentNode, self.robot_1.endPoint)
+                            pathList = self.aStar.calculatePath(self.maze, robot.currentNode, robot.endPointXY)
+                            
                             if pathList is not None:
+                                self.get_logger().info(f"pathList len : {len(pathList)}")
+                                self.get_logger().info(f"pathList : {pathList[0]}")
                                 robot.wait = 0
                                 nextNode = pathList[1]
-                                self.updateMazeClear(self.robot_1.currentNode)
+                                self.updateMazeClear(robot.currentNode)
                                 self.updateMazeSet(nextNode)
-                                self.shortGoal_serviceCall(self.robot_1.robot_id, self.robot_1.currentNode, nextNode)
+                                self.shortGoal_serviceCall(robot.robot_id, robot.currentNode, nextNode)
                             else:
-                                self.get_logger().info(f"{robotId} : path findig...")
+                                self.get_logger().info(f"{robotId} : path finding...")
                         else:
                             pass
                     else:
@@ -208,8 +240,10 @@ class robotTaskManager(RobotControl):
     def robotArrival_callback_service_1(self, request, response):
         try:
             print("------robotArrival_callback_service Start 1111111--------")
-            self.robot_1.currentNode[0] = request.current_x
-            self.robot_1.currentNode[1] = request.current_y
+            self.get_logger().info(f"robot 111 current req.x : {request.current_x}")
+            self.get_logger().info(f"robot 111 current req.y : {request.current_y}")
+
+            self.robot_1.currentNode = (request.current_x, request.current_y)
             nodeType = 0    # 0: Invalid, 1: way, 2: 종착지
 
             # 지금 도착한 node가 종착지인지 확인
@@ -221,10 +255,14 @@ class robotTaskManager(RobotControl):
                     nodeType = 1
 
             if nodeType == 1:   # waypoint 도착
+                self.get_logger().info(f"robot 111 way 도착")
                 response.success = True
                 # Astar
-                pathList = self.aStar.calculatePath(self.maze, self.robot_1.currentNode, self.robot_1.endPoint)
+                pathList = self.aStar.calculatePath(self.maze, self.robot_1.currentNode, self.robot_1.endPointXY)
+                
                 if pathList is not None:
+                    self.get_logger().info(f"pathList len : {len(pathList)}")
+                    self.get_logger().info(f"pathList : {pathList[0]}")
                     nextNode = pathList[1]
                     self.shortGoal_serviceCall(self.robot_1.robot_id, self.robot_1.currentNode, nextNode)
                     self.updateMazeSet(nextNode)
@@ -248,8 +286,9 @@ class robotTaskManager(RobotControl):
     def robotArrival_callback_service_2(self, request, response):
         try:
             print("------robotArrival_callback_service Start 2222222--------")
-            self.robot_2.currentNode[0] = request.current_x
-            self.robot_2.currentNode[1] = request.current_y
+            self.get_logger().info(f"robot 222 current req.x : {request.current_x}")
+            self.get_logger().info(f"robot 222 current req.y : {request.current_y}")
+            self.robot_2.currentNode = (request.current_x, request.current_y)
             nodeType = 0    # 0: Invalid, 1: way, 2: 종착지
 
             # 지금 도착한 node가 종착지인지 확인
@@ -261,10 +300,14 @@ class robotTaskManager(RobotControl):
                     nodeType = 1
 
             if nodeType == 1:   # waypoint 도착
+                self.get_logger().info(f"robot 222 way 도착")
                 response.success = True
                 # Astar
-                pathList = self.aStar.calculatePath(self.maze, self.robot_2.currentNode, self.robot_2.endPoint)
+                pathList = self.aStar.calculatePath(self.maze, self.robot_2.currentNode, self.robot_2.endPointXY)
+                
                 if pathList is not None:
+                    self.get_logger().info(f"pathList len : {len(pathList)}")
+                    self.get_logger().info(f"pathList : {pathList[0]}")
                     nextNode = pathList[1]
                     self.shortGoal_serviceCall(self.robot_2.robot_id, self.robot_2.currentNode, nextNode)
                     self.updateMazeSet(nextNode)
@@ -288,8 +331,9 @@ class robotTaskManager(RobotControl):
     def robotArrival_callback_service_3(self, request, response):
         try:
             print("------robotArrival_callback_service Start 3333333--------")
-            self.robot_3.currentNode[0] = request.current_x
-            self.robot_3.currentNode[1] = request.current_y
+            self.get_logger().info(f"robot 333 current req.x : {request.current_x}")
+            self.get_logger().info(f"robot 333 current req.y : {request.current_y}")
+            self.robot_3.currentNode = (request.current_x, request.current_y)
             nodeType = 0    # 0: Invalid, 1: way, 2: 종착지
 
             # 지금 도착한 node가 종착지인지 확인
@@ -301,10 +345,14 @@ class robotTaskManager(RobotControl):
                     nodeType = 1
 
             if nodeType == 1:   # waypoint 도착
+                self.get_logger().info(f"robot 333 way 도착")
                 response.success = True
                 # Astar
-                pathList = self.aStar.calculatePath(self.maze, self.robot_3.currentNode, self.robot_3.endPoint)
+                pathList = self.aStar.calculatePath(self.maze, self.robot_3.currentNode, self.robot_3.endPointXY)
+                
                 if pathList is not None:
+                    self.get_logger().info(f"pathList len : {len(pathList)}")
+                    self.get_logger().info(f"pathList : {pathList[0]}")
                     nextNode = pathList[1]
                     self.shortGoal_serviceCall(self.robot_3.robot_id, self.robot_3.currentNode, nextNode)
                     self.updateMazeSet(nextNode)
@@ -333,21 +381,21 @@ class robotTaskManager(RobotControl):
                 print("배차 상세 목적지 설정")
                 print("cmd:",cmd,"endPointName : ", endPointName)
                 if endPointName == "S-1":
-                    if self.checkNode["S11"] == 0:
-                        self.updateMazeSet(self.xyAlias["S11"])
-                        endGoal = self.xyAlias["S11"]
-                    elif self.checkNode["S12"] == 0:
-                        self.updateMazeSet(self.xyAlias["S12"])
-                        endGoal = self.xyAlias["S12"]
+                    if self.goalNode["S11"] == 0:
+                        self.goalNode["S11"] = 1
+                        endGoal = "S11"
+                    elif self.goalNode["S12"] == 0:
+                        self.goalNode["S12"] = 1
+                        endGoal = "S12"
                     else:
                         self.get_logger().info(f"Store1 is busy...")
                 elif endPointName == "S-2":
-                    if self.checkNode["S21"] == 0:
-                        self.updateMazeSet(self.xyAlias["S21"])
-                        endGoal = self.xyAlias["S21"]
-                    elif self.checkNode["S22"] == 0:
-                        self.updateMazeSet(self.xyAlias["S22"])
-                        endGoal = self.xyAlias["S22"]
+                    if self.goalNode["S21"] == 0:
+                        self.goalNode["S21"] = 1
+                        endGoal = "S21"
+                    elif self.goalNode["S22"] == 0:
+                        self.goalNode["S22"] = 1
+                        endGoal = "S22"
                     else:
                         self.get_logger().info(f"Store2 is busy...")
                 else:
@@ -356,21 +404,21 @@ class robotTaskManager(RobotControl):
                 print("배달 상세 목적지 설정")
                 print("cmd:",cmd,"endPointName : ", endPointName)
                 if endPointName == "K-1":
-                    if self.checkNode["K11"] == 0:
-                        self.updateMazeSet(self.xyAlias["K11"])
-                        endGoal = self.xyAlias["K11"]
-                    elif self.checkNode["K12"] == 0:
-                        self.updateMazeSet(self.xyAlias["K12"])
-                        endGoal = self.xyAlias["K12"]
+                    if self.goalNode["K11"] == 0:
+                        self.goalNode["K11"] = 1
+                        endGoal = "K11"
+                    elif self.goalNode["K12"] == 0:
+                        self.goalNode["K12"] = 1
+                        endGoal = "K12"
                     else:
                         self.get_logger().info(f"Kiosk1 is busy...")
                 elif endPointName == "K-2":
-                    if self.checkNode["K21"] == 0:
-                        self.updateMazeSet(self.xyAlias["K21"])
-                        endGoal = self.xyAlias["K21"]
-                    elif self.checkNode["K22"] == 0:
-                        self.updateMazeSet(self.xyAlias["K22"])
-                        endGoal = self.xyAlias["K22"]
+                    if self.goalNode["K21"] == 0:
+                        self.goalNode["K21"] = 1
+                        endGoal = "K21"
+                    elif self.goalNode["K22"] == 0:
+                        self.goalNode["K22"] = 1
+                        endGoal = "K22"
                     else:
                         self.get_logger().info(f"Kiosk2 is busy...")
                 else:
@@ -379,23 +427,11 @@ class robotTaskManager(RobotControl):
                 print("복귀 상세 목적지 설정")
                 print("cmd:",cmd,"endPointName : ", endPointName)
                 if endPointName == "R-1":
-                    if self.checkNode["R-1"] == 0:
-                        self.updateMazeSet(self.xyAlias["R-1"])
-                        endGoal = self.xyAlias["R-1"]
-                    else:
-                        self.get_logger().info(f"R-1 is busy...")
+                    endGoal = "R-1"
                 elif endPointName == "R-2":
-                    if self.checkNode["R-2"] == 0:
-                        self.updateMazeSet(self.xyAlias["R-2"])
-                        endGoal = self.xyAlias["R-2"]
-                    else:
-                        self.get_logger().info(f"R-2 is busy...")
+                    endGoal = "R-2"
                 elif endPointName == "R-3":
-                    if self.checkNode["R-3"] == 0:
-                        self.updateMazeSet(self.xyAlias["R-3"])
-                        endGoal = self.xyAlias["R-3"]
-                    else:
-                        self.get_logger().info(f"R-3 is busy...")
+                    endGoal = "R-3"
                 else:
                     self.get_logger().info(f"Invalid Robot ID is entered...")
             else:

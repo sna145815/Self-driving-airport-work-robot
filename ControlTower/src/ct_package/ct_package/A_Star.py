@@ -1,6 +1,6 @@
 import heapq
 
-class Node:
+class goalNode:
     def __init__(self, parent=None, position=None):
         self.parent = parent            # 이전 노드 ex) (0,0)
         self.position = position        # 현재 위치 ex) (0,0)
@@ -31,8 +31,8 @@ class aStar:
     def calculatePath(self, maze, start, end):
         print("calculate")
         # startNode와 endNode 초기화
-        startNode = Node(None, start)
-        endNode = Node(None, end)
+        startNode = goalNode(None, start)
+        endNode = goalNode(None, end)
 
         # openList, closedList 초기화
         openList = []
@@ -47,15 +47,19 @@ class aStar:
             currentNode = heapq.heappop(openList)
             closedSet.add(currentNode.position)
 
+            print("currentNode : ",currentNode.position)
     
             # 현재 노드가 목적지면 current.position 추가하고
             # current의 부모로 이동
             if currentNode == endNode:
+                print("종점 도착")
                 path = []
                 while currentNode is not None:
                     path.append(currentNode.position)
                     currentNode = currentNode.parent
                 return path[::-1]
+            
+            print("아직 종점 아님")
 
             # 인접한 xy좌표 전부, DFS
             # for newPosition in (0, -1), (0, 1), (-1, 0), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1):
@@ -71,7 +75,7 @@ class aStar:
                 if maze[nodePosition[0]][nodePosition[1]] != 0:
                     continue
 
-                new_node = Node(currentNode, nodePosition)
+                new_node = goalNode(currentNode, nodePosition)
                 # 자식이 closedList에 있으면 continue
                 if new_node.position in closedSet:
                     continue
@@ -88,19 +92,6 @@ class aStar:
                     continue
 
                 heapq.heappush(openList, new_node)
-        
 
-    # def run(self):
-    #     # 5x8
-    #     self.maze1 = [[1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #                   [1, 0, 0, 0, 0, 0, 0, 0, 1],
-    #                   [1, 0, 1, 0, 1, 0, 1, 0, 1],
-    #                   [1, 0, 0, 0, 0, 0, 0, 0, 1],
-    #                   [1, 1, 1, 1, 1, 1, 1, 1, 1]]
-    #     # 로봇 id에 따라 start, end 정해주기
-    #     start = (0,1) # R-3
-    #     end = (3,4) # S12
-
-    #     path = self.calculatePath(self.maze1, start, end)
-    #     print(path)
+        print("while end")
 
