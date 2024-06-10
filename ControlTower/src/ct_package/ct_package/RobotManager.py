@@ -55,7 +55,7 @@ class RobotManager(Node):
 
     def setup_topic(self):
         self.position1 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose_1',self.position_callback1,10)
-        #self.position2 = self.create_subscription(String,'/amcl_pose_2',self.position_callback2,1)
+        self.position2 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose_2',self.position_callback2,10)
         self.position3 = self.create_subscription(PoseWithCovarianceStamped,'/amcl_pose_3',self.position_callback3,10)
 
     def setup_service_clients(self):
@@ -86,6 +86,13 @@ class RobotManager(Node):
         position = msg.pose.pose.position
         #self.get_logger().info(f'Position: [{position.x}, {position.y}]')
         self.robots["R-2"]=(position.x,position.y)
+
+        robot_position = {
+            "robot_id": "R-2",
+            "x": position.x,
+            "y": position.y
+        }
+        self.tcp_send(robot_position)
     
     def position_callback3(self, msg):
         position = msg.pose.pose.position

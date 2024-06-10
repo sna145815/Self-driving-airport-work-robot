@@ -187,6 +187,8 @@ class RobotControl(Node):
         if self.robot_1.is_active and self.robot_2.is_active and self.robot_3.is_active:
             self.get_logger().error("All robot is active")
             response.success = False
+
+            return response
         else:
             self.get_logger().info("Received Robot Call")
             self.get_logger().info(f"robot_id : {robot_id}, order_id : {order_id}, uid : {uid}")

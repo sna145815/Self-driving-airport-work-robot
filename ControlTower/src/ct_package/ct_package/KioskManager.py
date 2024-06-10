@@ -10,9 +10,9 @@ from std_msgs.msg import String
 from ct_package.db_manager import DBManager
 from interface_package.srv import OrderCall
 
-HOST = '192.168.0.217'  # server(yjs) rosteam3 wifi
+HOST = '192.168.0.210'  # server(yjs) rosteam3 wifi
 HOST_DB = '192.168.0.44'  # server(kjh)
-KIOSK_PORTS = [9019, 9020]  # 포트 리스트
+KIOSK_PORTS = [9011, 9012]  # 포트 리스트
 
 class KioskManager(Node):
     def __init__(self, host, ports, dbmanager):
