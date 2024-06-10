@@ -18,9 +18,6 @@ HOST = "192.168.0.210" # yjs ethernet
 # HOST = "192.168.0.44" # jinhong ethernet
 PORT = 9023
 
-# from_class1 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/selectStore.ui")[0]
-# from_class2 = uic.loadUiType("/home/addinedu/amr_ws/git_ws/ros-repo-3/store/store.ui")[0]
-
 from_class1 = uic.loadUiType("selectStore.ui")[0]
 from_class2 = uic.loadUiType("store.ui")[0]
 
@@ -137,9 +134,6 @@ class SecondScreen(QWidget, from_class2):
         self.menuToggle = 1
         self.storeToggle = 1
 
-        # test btn
-        self.DRbtn.clicked.connect(self.reqRobot2)
-        # self.MSbtn.clicked.connect(self.ctrlMenuStatus)
         self.SSbtn.clicked.connect(self.ctrlStoreStatus)
 
         # Store 1
@@ -278,15 +272,6 @@ class SecondScreen(QWidget, from_class2):
         self.client_socket.sendall(message.encode())
         print("hello Store")
 
-
-    def reqRobot2(self):
-        cmd = "DR"
-        storeId = "S-1"
-        orderNo = 10
-        message = cmd + "," + storeId + "," + str(orderNo)
-
-        self.client_socket.sendall(message.encode())
-        print("hello Store")
 
     def ctrlMenuStatus(self, menuId, menuStatus):
         cmd = "MS"
@@ -450,7 +435,6 @@ class SecondScreen(QWidget, from_class2):
                 
                 # print(menu[i])
                 # print(type(menu[i]))
-                self.lineEdit.setText(cmd + "," + orderNo + "," + menuCnt + "," + menu[i])
             
             totalMenuCnt = cnt
             # print(totalMenuCnt)
@@ -487,15 +471,12 @@ class SecondScreen(QWidget, from_class2):
                 pass
 
             self.updateList(row, 3, DRobotStatusText)
-            self.updateList(row, 4, DRobotNo)
-
-            self.lineEdit.setText(cmd + "," + orderNo + "," + DRobotStatus + "," + DRobotNo)            
+            self.updateList(row, 4, DRobotNo)      
         else:
             print("wrong command")
 
         print("recv complete")
 
-        # self.lineEdit.setText(result)
 
     def receiveOrder(self, recv):
         result = recv.split(',')
@@ -518,8 +499,6 @@ class SecondScreen(QWidget, from_class2):
                     tmp = result[i+3]
                     menu.append(tmp)
                     cnt = cnt + int(tmp.split('/')[1])
-                    
-                    self.lineEdit.setText(cmd + "," + orderNo + "," + menuCnt + "," + menu[i])
                 
                 totalMenuCnt = cnt
                 # print(totalMenuCnt)
@@ -552,7 +531,6 @@ class SecondScreen(QWidget, from_class2):
                 self.updateList(row, 3, DRobotStatusText)
                 self.updateList(row, 4, DRobotNo)
 
-                self.lineEdit.setText(cmd + "," + orderNo + "," + DRobotStatus + "," + DRobotNo)            
             else:
                 print("wrong command")
 
@@ -560,7 +538,6 @@ class SecondScreen(QWidget, from_class2):
         else:
             print("Received TCP data is too short")
 
-        # self.lineEdit.setText(result)
 
     def menuCbAM1_clicked(self):
         menuId = "AM-1"
