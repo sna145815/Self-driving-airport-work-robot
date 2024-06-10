@@ -45,6 +45,8 @@ class Robot():
         self.lastEndPoint = None
         self.movingFlg = 0
         self.pathDict = None
+        self.wait = 0
+        self.currentNode = ()
 
         
     def __str__(self):
