@@ -1,0 +1,48 @@
+drobot_motor:
+  ros__parameters:
+    points: |
+      0,0: Invalid point, -0.05, 0.0;
+      1,0: Kiosk22, 0.3, 0.0;
+      2,0: Invalid point, 0.75, 0.0;
+      3,0: Kiosk21, 1.2, 0.0;
+      4,0: Invalid point, 1.75, 0.0;
+      0,1: Robot3, -0.05, 0.6;
+      1,1: Waypoint, 0.3, 0.45;
+      2,1: Waypoint, 0.75, 0.45;
+      3,1: Waypoint, 1.2, 0.45;
+      4,1: Store22, 1.75, 0.3;
+      0,2: Invalid point, -0.05, 0.725;
+      1,2: Waypoint, 0.3, 0.725;
+      2,2: Invalid point, 0.75, 0.725;
+      3,2: Waypoint, 1.2, 0.725;
+      4,2: Invalid point, 1.75, 0.725;
+      0,3: Invalid point, -0.05, 1.27;
+      1,3: Waypoint, 0.3, 1.27;
+      2,3: Waypoint, 0.75, 1.27;
+      3,3: Waypoint, 1.2, 1.27;
+      4,3: Store21, 1.75, 1.27;
+      0,4: Robot2, -0.05, 1.6;
+      1,4: Waypoint, 0.3, 1.42;
+      2,4: Invalid point, 0.75, 1.42;
+      3,4: Waypoint, 1.2, 1.42;
+      4,4: Invalid point, 1.75, 1.42;
+      0,5: Invalid point, -0.05, 1.65;
+      1,5: Waypoint, 0.3, 1.65;
+      2,5: Waypoint, 0.75, 1.65;
+      3,5: Waypoint, 1.2, 1.65;
+      4,5: Store12, 1.75, 1.7;
+      0,6: Invalid point, -0.05, 2.175;
+      1,6: Waypoint, 0.3, 2.175;
+      2,6: Invalid point, 0.75, 2.175;
+      3,6: Waypoint, 1.2, 2.175;
+      4,6: Invalid point, 1.75, 2.175;
+      0,7: Robot1, -0.05, 2.6;
+      1,7: Waypoint, 0.3, 2.6;
+      2,7: Waypoint, 0.75, 2.6;
+      3,7: Waypoint, 1.2, 2.6;
+      4,7: Store11, 1.75, 2.6;
+      0,8: Invalid point, -0.05, 2.9;
+      1,8: Kiosk11, 0.3, 2.9;
+      2,8: Invalid point, 0.75, 2.9;
+      3,8: Kiosk12, 1.2, 2.9;
+      4,8: Invalid point, 1.75, 2.9;
