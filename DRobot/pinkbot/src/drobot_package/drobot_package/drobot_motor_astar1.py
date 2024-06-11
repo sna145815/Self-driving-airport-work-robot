@@ -47,18 +47,17 @@ class DrobotMotor(Node):
 
 
         self.nav = BasicNavigator()
-        # self.nav.waitUntilNav2Active()
+        self.nav.waitUntilNav2Active()
 
         self.initialize_parameters()
         self.initialize_subs_and_pubs()
         self.initialize_clients()
-        self.initalize_timer()
+        self.initialize_timer()
 
         self.get_logger().info(f"R-{ROBOT_NUMBER} motor start")
         
 
     def initialize_parameters(self):
-        self.initialize_variables()
         self.qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
@@ -88,6 +87,7 @@ class DrobotMotor(Node):
         self.invalid_points = self.get_indices_for_label("Invalid point")
         self.robot_points = self.get_indices_for_label(f"Robot{int(ROBOT_NUMBER)}")
 
+        self.initialize_variables()
         # self.log_processed_parameters()
 
     def initialize_variables(self):
@@ -111,17 +111,21 @@ class DrobotMotor(Node):
         self.attempt_count = 0
         self.max_attempts = 3
 
+        self.x_shift = 0.0
+        self.y_shift = 0.0
+
 
     def initialize_subs_and_pubs(self):
         self.cmd_vel_pub = self.create_publisher(Twist, "/base_controller/cmd_vel_unstamped", 10)
-        self.reset_sub = self.create_service(Trigger, "/reset", self.reset_callback)
 
     def initialize_clients(self):
+        self.reset_sub = self.create_service(Trigger, "/reset", self.reset_callback)
+        
         self.robot_arrival_client = self.create_client(NodeNum, "robotArrival")
         self.module_client = self.create_client(Module, "module")
-    
-    def initalize_timer(self):
-        self.moivig_timer = self.create_timer(1.0, self.moving_timer_callback)
+        
+    def initialize_timer(self):
+        self.moving_timer = self.create_timer(1.0, self.moving_timer_callback)
 
     def get_position(self, point):
         row, col = point
@@ -213,18 +217,26 @@ class DrobotMotor(Node):
             self.request_robot_arrival(self.next_point)
 
     def determine_direction(self, current, next):
-        dx = next.x - current.x
-        dy = next.y - current.y
+        dx = next[0] - current[0]
+        dy = next[1] - current[1]
         self.get_logger().info(f"Determine direction: current={current}, next={next}, dx={dx}, dy={dy}, status={self.status}")
 
         if dx > 0 and dy == 0:
             yaw = 0.0
+            self.x_shift == 0.0
+            self.y_shift == 0.0
         elif dx < 0 and dy == 0:
             yaw = math.pi
+            self.x_shift == -0.1
+            self.y_shift == 0.0
         elif dx == 0 and dy > 0:
             yaw = math.pi / 2
+            self.x_shift == 0.0
+            self.y_shift == -0.05
         elif dx == 0 and dy < 0:
             yaw = -math.pi / 2
+            self.x_shift == 0.0
+            self.y_shift == 0.05
         else:
             yaw = math.atan2(dy, dx)
 
@@ -249,8 +261,8 @@ class DrobotMotor(Node):
         goal_pose = PoseStamped()
         goal_pose.header.frame_id = "map"
         goal_pose.header.stamp = self.nav.get_clock().now().to_msg()
-        goal_pose.pose.position.x = x
-        goal_pose.pose.position.y = y
+        goal_pose.pose.position.x = x + self.x_shift
+        goal_pose.pose.position.y = y + self.y_shift
         goal_pose.pose.position.z = 0.0
         goal_pose.pose.orientation.x = 0.0
         goal_pose.pose.orientation.y = 0.0
@@ -260,13 +272,19 @@ class DrobotMotor(Node):
         return goal_pose
 
     def calc_diff(self, goal_position, current_position):
+        self.get_logger().info(f"current_position value: ({self.current_position.x}, {self.current_position.y})")
+        self.get_logger().info(f"goal position: ({goal_position.x}, {goal_position.y})")
+
+
         diff_x = goal_position.x - current_position.x
         diff_y = goal_position.y - current_position.y
-        return math.sqrt(diff_x ** 2 + diff_y ** 2)
+        diff = math.sqrt(diff_x ** 2 + diff_y ** 2)
+        self.get_logger().info(f"diff : {diff}")
+        return diff
     
     def check_succeed(self, current_position):
         diff_dist = self.calc_diff(self.next_position, current_position)
-        if diff_dist <= 0.3:
+        if diff_dist <= 0.5:
             self.get_logger().info("Moving succeeded!")
             self.verify_checkpoint()
             self.attempt_count = 0
@@ -319,9 +337,9 @@ class DrobotMotor(Node):
 
     def request_robot_arrival(self, current_point):
         robot_arrival_request = NodeNum.Request()
-        self.get_logger().info(f"Arrived to : {current_point}")
-        robot_arrival_request.current_x = current_point.x
-        robot_arrival_request.current_y = current_point.y
+        self.get_logger().info(f"Arrived at {current_point}")
+        robot_arrival_request.current_x = current_point[0]
+        robot_arrival_request.current_y = current_point[1]
         robot_arrival_request.next_x = 0
         robot_arrival_request.next_y = 0
         future = self.robot_arrival_client.call_async(robot_arrival_request)
@@ -342,6 +360,7 @@ class DrobotMotor(Node):
         return response
     
     def reset(self):
+        self.get_logger().info("Reset")
         self.initialize_variables()
 
     def returning(self):
@@ -386,6 +405,7 @@ class DrobotTask(Node):
         return response
 
     def short_goal_callback(self, request, response):
+        self.get_logger().info(f"Short goal is ({request.next_x}, {request.next_y})")
         next_point = (request.next_x, request.next_y)
 
         if 0 <= next_point[0] <= 4 and 0 <= next_point[1] <= 8:
@@ -461,7 +481,7 @@ class AmclSub(Node):
         y = position.y
         self.motor_node.current_position = Position(x, y)
 
-        self.motor_node.get_logger().info(f"Updated from amcl_pose: current_position value: {self.motor_node.current_position}")
+        # self.motor_node.get_logger().info(f"Updated from amcl_pose: current_position value: {self.motor_node.current_position}")
 
 def main(args=None):
     rp.init(args=args)
