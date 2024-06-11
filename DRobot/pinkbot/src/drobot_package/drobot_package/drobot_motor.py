@@ -1,8 +1,3 @@
-import sys
-import os
-import json
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from enum import Enum
 import rclpy as rp
 from rclpy.node import Node
@@ -18,10 +13,17 @@ from tf_transformations import quaternion_from_euler, euler_from_quaternion
 
 import math
 from time import sleep
+from collections import namedtuple
 
-# ROBOT_NUMBER = "1"
-ROBOT_NUMBER = "2"
+MAX_ATTEMPTS = 3
+NAVIGATION_TIME_FACTOR = 13
+MIN_NAV_TIME = 5.0
+
+ROBOT_NUMBER = "1"
+# ROBOT_NUMBER = "2"
 # ROBOT_NUMBER = "3"
+
+Position = namedtuple('Position', ['x', 'y'])
 
 class RobotStatus(Enum):
     HOME = 0  # waiting at Home
@@ -43,21 +45,25 @@ class DrobotMotor(Node):
     def __init__(self):
         super().__init__("drobot_motor")
 
+
+        self.nav = BasicNavigator()
+        # self.nav.waitUntilNav2Active()
+
+        self.initialize_parameters()
+        self.initialize_subs_and_pubs()
+        self.initialize_clients()
+        self.initalize_timer()
+
+        self.get_logger().info(f"R-{ROBOT_NUMBER} motor start")
+        
+
+    def initialize_parameters(self):
+        self.initialize_variables()
         self.qos_profile = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE,
             depth=10
         )
-        self.nav = BasicNavigator()
-        self.nav.waitUntilNav2Active()
-
-        self.is_active = False
-        self.store_id = ""
-        self.kiosk_id = ""
-        self.status = RobotStatus.HOME
-        self.is_moving = 0
-
-        
         self.status_change = {
             RobotStatus.HOME: RobotStatus.TO_STORE,
             RobotStatus.TO_STORE: RobotStatus.AT_STORE,
@@ -67,41 +73,63 @@ class DrobotMotor(Node):
             RobotStatus.RETURNING: RobotStatus.AT_HOME,
             # RobotStatus.AT_HOME: RobotStatus.HOME
         }
-        
-        self.module_client = self.create_client(Module, "module")
-
-        self.cmd_vel_pub = self.create_publisher(Twist, "/base_controller/cmd_vel_unstamped", 10)
-        self.reset_sub = self.create_service(Trigger, "/reset", self.reset_callback)
-        
-        self.moivig_timer = self.create_timer(1.0, self.moving_timer_callback)
-        self.robot_arrival_client = self.create_client(NodeNum, "robotArrival")
-
-        self.get_logger().info(f"R-{ROBOT_NUMBER} motor start")
-        
         self.declare_parameter("points", "")
 
         self.points_str = self.get_parameter("points").get_parameter_value().string_value
         self.positions, self.labels = self.parse_points(self.points_str)
 
+        # for row in range(5):
+        #     for col in range(9):
+        #         if self.positions[row][col] is not None:
+        #             self.get_logger().info(f"Point ({row},{col}): Position={self.positions[row][col]}, Label={self.labels[row][col]}")
 
         self.waypoint_points = self.get_indices_for_label("Waypoint")
-        # self.kiosk_points = self.get_indices_for_label("Kiosk")
-        # self.store_points = self.get_indices_for_label("Store")
-        self.store_points = []
-        self.kiosk_points = []
+
         self.invalid_points = self.get_indices_for_label("Invalid point")
         self.robot_points = self.get_indices_for_label(f"Robot{int(ROBOT_NUMBER)}")
 
         # self.log_processed_parameters()
 
-        self.current_point = list(self.robot_points[0])
-        self.next_point = list(self.robot_points[0])
-        self.current_position = [self.positions[self.current_point[0]][self.current_point[1]][0], self.positions[self.current_point[0]][self.current_point[1]][1]]
-        self.next_position = [self.positions[self.current_point[0]][self.current_point[1]][0], self.positions[self.current_point[0]][self.current_point[1]][1]]
+    def initialize_variables(self):
+        self.is_active = False
+        self.store_id = ""
+        self.kiosk_id = ""
+        self.status = RobotStatus.HOME
+        self.is_moving = 0
+
+        self.store_points = []
+        self.kiosk_points = []
+
+        self.current_point = self.robot_points[0] #tuple
+        self.next_point = self.robot_points[0] #tuple
+        self.current_position = self.get_position(self.robot_points[0]) #namedtuple
+        self.next_position = self.get_position(self.robot_points[0]) #namedtuple
+        # print(type(self.current_point))
+        # print(type(self.current_position))
         self.current_yaw = 0.0
         self.diff_dist = 0.0
         self.attempt_count = 0
         self.max_attempts = 3
+
+
+    def initialize_subs_and_pubs(self):
+        self.cmd_vel_pub = self.create_publisher(Twist, "/base_controller/cmd_vel_unstamped", 10)
+        self.reset_sub = self.create_service(Trigger, "/reset", self.reset_callback)
+
+    def initialize_clients(self):
+        self.robot_arrival_client = self.create_client(NodeNum, "robotArrival")
+        self.module_client = self.create_client(Module, "module")
+    
+    def initalize_timer(self):
+        self.moivig_timer = self.create_timer(1.0, self.moving_timer_callback)
+
+    def get_position(self, point):
+        row, col = point
+        return self.positions[row][col]
+
+    def get_label(self, point):
+        row, col = point
+        return self.labels[row][col]
 
     def parse_points(self, points_str):
         points = points_str.strip().split(";")
@@ -113,26 +141,11 @@ class DrobotMotor(Node):
                 key, value = point.split(": ")
                 row, col = map(int, key.split(","))
                 label, x, y = value.split(", ")
-                positions[row][col] = [float(x), float(y)]
+                positions[row][col] = Position(float(x), float(y))
                 labels[row][col] = label
 
         return positions, labels
     
-    def log_processed_parameters(self):
-        for i, (pos_row, label_row) in enumerate(zip(self.positions, self.labels)):
-            self.get_logger().info(f"Row {i} Positions: {pos_row}")
-            self.get_logger().info(f"Row {i} Labels: {label_row}")
-
-        self.get_logger().info(f"Waypoint points: {self.waypoint_points}")
-        self.get_logger().info(f"Invalid points: {self.invalid_points}")
-        self.get_logger().info(f"Robot points: {self.robot_points}")
-
-    def get_position(self, row, col):
-        return self.positions[row][col]
-
-    def get_label(self, row, col):
-        return self.labels[row][col]
-
     def get_indices_for_label(self, label_prefix):
         indices = []
         for row in range(5):
@@ -140,6 +153,12 @@ class DrobotMotor(Node):
                 if self.labels[row][col].startswith(label_prefix):
                     indices.append((row, col))
         return indices
+    
+    def update_positions(self, current_point, next_point):
+        self.current_point = current_point
+        self.next_point = next_point
+        self.current_position = self.get_position(current_point)
+        self.next_position = self.get_position(next_point)
 
     def update_status(self):
         self.get_logger().info(f"Updating status from {self.status.name}")
@@ -165,15 +184,12 @@ class DrobotMotor(Node):
             self.send_goal(self.next_position)
 
     def send_goal(self, goal):
-        x = goal[0]
-        y = goal[1]
+        x = goal.x
+        y = goal.y
         goal_pose = self.get_goal_pose(x, y)
         
         distance = self.calc_diff(self.next_position, self.current_position)
-        if distance * 13 > 5.0:
-            nav_time = distance * 13
-        else:
-            nav_time = 5.0
+        nav_time = max(distance * NAVIGATION_TIME_FACTOR, MIN_NAV_TIME)
     
         self.nav.goToPose(goal_pose)
         i = 0
@@ -187,41 +203,40 @@ class DrobotMotor(Node):
         result = self.nav.getResult()
 
         if result == TaskResult.SUCCEEDED:
-            print("Goal succeeded!")
+            self.get_logger().info("Goal succeeded!")
         elif result == TaskResult.CANCELED:
-            print("Goal was canceled!")
+            self.get_logger().warn("Goal was canceled!")
         elif result == TaskResult.FAILED:
-        
-            print("Goal failed!")
+            self.get_logger().warn("Goal failed!")
 
         if self.check_succeed(self.current_position):
             self.request_robot_arrival(self.next_point)
 
     def determine_direction(self, current, next):
-        dx = next[0] - current[0]
-        dy = next[1] - current[1]
+        dx = next.x - current.x
+        dy = next.y - current.y
         self.get_logger().info(f"Determine direction: current={current}, next={next}, dx={dx}, dy={dy}, status={self.status}")
 
         if dx > 0 and dy == 0:
-            yaw = 0.0 #"NORTH"
+            yaw = 0.0
         elif dx < 0 and dy == 0:
-            yaw = math.pi  #"SOUTH"
+            yaw = math.pi
         elif dx == 0 and dy > 0:
-            yaw = math.pi / 2 #"WEST"
+            yaw = math.pi / 2
         elif dx == 0 and dy < 0:
-            yaw = -math.pi / 2 #"EAST"
+            yaw = -math.pi / 2
         else:
             yaw = math.atan2(dy, dx)
-        
-        if tuple(next) in self.store_points:
-            yaw = math.pi  #"SOUTH"
-        elif tuple(next) in self.kiosk_points:
+
+        if next in self.store_points:
+            yaw = math.pi
+        elif next in self.kiosk_points:
             if self.store_id[2] == "1":
-                yaw = -math.pi / 2 #"EAST"
+                yaw = -math.pi / 2
             elif self.store_id == "2":
-                yaw = math.pi / 2 #"WEST"
-        elif tuple(next) in self.robot_points:
-            yaw = 0.0 #"NORTH"
+                yaw = math.pi / 2
+        elif next in self.robot_points:
+            yaw = 0.0
 
         return yaw
 
@@ -244,6 +259,11 @@ class DrobotMotor(Node):
 
         return goal_pose
 
+    def calc_diff(self, goal_position, current_position):
+        diff_x = goal_position.x - current_position.x
+        diff_y = goal_position.y - current_position.y
+        return math.sqrt(diff_x ** 2 + diff_y ** 2)
+    
     def check_succeed(self, current_position):
         diff_dist = self.calc_diff(self.next_position, current_position)
         if diff_dist <= 0.3:
@@ -252,42 +272,30 @@ class DrobotMotor(Node):
             self.attempt_count = 0
             return True
         else:
-            if self.attempt_count < self.max_attempts:
-                self.attempt_count += 1
-                self.send_goal(self.next_position)
-                self.get_logger().warn(f"Moving failed! Attempt {self.attempt_count}/{self.max_attempts}")
-                return False
-            else:
-                self.get_logger().error("Moving failed after 3 attempts.")
-                self.attempt_count = 0
-                diff_dist = self.calc_diff(self.next_position, current_position)
-                self.get_logger().info(f"different_distance : {diff_dist}")
-                self.verify_checkpoint()
-                return True
-
-    def calc_diff(self, goal_position, current_position):
-        goal_position_x = goal_position[0]
-        goal_position_y = goal_position[1]
-        current_position_x = current_position[0]
-        current_position_y = current_position[1]
-        self.diff_x = goal_position_x - current_position_x
-        self.diff_y = goal_position_y - current_position_y
-        diff_dist = math.sqrt((self.diff_x) ** 2 + (self.diff_y) ** 2)
-
-        return diff_dist
-
-    def verify_checkpoint(self):
-        next_point_tuple = tuple(self.next_point)
+            return self.resend_goal()
         
-        if next_point_tuple in self.store_points and self.status == RobotStatus.TO_STORE:
+    def resend_goal(self):
+        if self.attempt_count < 3:
+            self.attempt_count += 1
+            self.send_goal(self.next_position)
+            self.get_logger().warn(f"Moving failed! Attempt {self.attempt_count}/3")
+            return False
+        else:
+            self.get_logger().error("Moving failed after 3 attempts.")
+            self.attempt_count = 0
+            self.verify_checkpoint()
+            return True
+    
+    def verify_checkpoint(self):
+        if self.next_point in self.store_points and self.status == RobotStatus.TO_STORE:
             self.update_status()
             self.request_module("ST")
             self.get_logger().info(f"R-{ROBOT_NUMBER} arrived at Store. So, status updated to {self.status.value}")
-        elif next_point_tuple in self.kiosk_points and self.status == RobotStatus.TO_KIOSK:
+        elif self.next_point in self.kiosk_points and self.status == RobotStatus.TO_KIOSK:
             self.update_status()
             self.request_module("KS")
             self.get_logger().info(f"R-{ROBOT_NUMBER} arrived at Kiosk. So, status updated to {self.status.value}")
-        elif next_point_tuple in self.robot_points and self.status == RobotStatus.RETURNING:
+        elif self.next_point in self.robot_points and self.status == RobotStatus.RETURNING:
             self.update_status()
             self.request_module("HM")
             self.get_logger().info(f"R-{ROBOT_NUMBER} arrived at Home. So, status updated to {self.status.value}")
@@ -296,6 +304,7 @@ class DrobotMotor(Node):
 
 
     def request_module(self, location):
+        self.get_logger().info(f"Request status : {location}")
         module_request = Module.Request()
         module_request.data = location
         future = self.module_client.call_async(module_request)
@@ -305,15 +314,14 @@ class DrobotMotor(Node):
         try:
             response = future.result()
             self.get_logger().info(f"module response : {response.success}")
-
         except Exception as e:
             self.get_logger().error(f"module call failed {e}")
 
     def request_robot_arrival(self, current_point):
         robot_arrival_request = NodeNum.Request()
         self.get_logger().info(f"Arrived to : {current_point}")
-        robot_arrival_request.current_x = current_point[0]
-        robot_arrival_request.current_y = current_point[1]
+        robot_arrival_request.current_x = current_point.x
+        robot_arrival_request.current_y = current_point.y
         robot_arrival_request.next_x = 0
         robot_arrival_request.next_y = 0
         future = self.robot_arrival_client.call_async(robot_arrival_request)
@@ -334,25 +342,8 @@ class DrobotMotor(Node):
         return response
     
     def reset(self):
+        self.initialize_variables()
 
-        self.is_active = False
-        self.store_id = ""
-        self.kiosk_id = ""
-        self.status = RobotStatus.HOME
-        self.is_moving = 0
-
-        self.store_points = []
-        self.kiosk_points = []
-        self.current_point = list(self.robot_points[0])
-        self.next_point = list(self.robot_points[0])
-        self.current_position = [self.positions[self.current_point[0]][self.current_point[1]][0], self.positions[self.current_point[0]][self.current_point[1]][1]]
-        self.next_position = [self.positions[self.current_point[0]][self.current_point[1]][0], self.positions[self.current_point[0]][self.current_point[1]][1]]
-        self.current_yaw = 0.0
-        self.diff_dist = 0.0
-        self.attempt_count = 0
-        self.max_attempts = 3
-
-    
     def returning(self):
         self.get_logger().info("Robot returning")
         self.store_points = []
@@ -374,26 +365,20 @@ class DrobotTask(Node):
         store_id = request.store_id
         kiosk_id = request.kiosk_id
 
-        self.get_logger().info("Get motor order request")
-        if self.motor_node.is_active == False:
+        self.get_logger().info(f"Get motor order request! Store : {store_id}, Kiosk : {kiosk_id}")
+
+        if not self.motor_node.is_active:
             self.motor_node.store_id = store_id
             self.motor_node.kiosk_id = kiosk_id
-            if store_id[2] == "1":
-                self.motor_node.store_points = self.motor_node.get_indices_for_label("Store1")
-            elif store_id[2] == "2":
-                self.motor_node.store_points = self.motor_node.get_indices_for_label("Store2")
-            if kiosk_id[2] == "1":
-                self.motor_node.kiosk_points = self.motor_node.get_indices_for_label("Kiosk1")
-            elif kiosk_id[2] == "2":
-                self.motor_node.kiosk_points = self.motor_node.get_indices_for_label("Kiosk2")
-            
+            self.motor_node.store_points = self.motor_node.get_indices_for_label(f"Store{store_id[2]}")
+            self.motor_node.kiosk_points = self.motor_node.get_indices_for_label(f"Kiosk{kiosk_id[2]}")
             self.motor_node.is_active = True
 
             if self.motor_node.status == RobotStatus.RETURNING:
-                self.motor_node.status == RobotStatus.TO_STORE
+                self.motor_node.status = RobotStatus.TO_STORE
 
-            self.get_logger().info(f"Kiosk points: {self.motor_node.kiosk_points}")
-            self.get_logger().info(f"Store points: {self.motor_node.store_points}")
+            # self.get_logger().info(f"Kiosk points: {self.motor_node.kiosk_points}")
+            # self.get_logger().info(f"Store points: {self.motor_node.store_points}")
             response.success = True
         else:
             response.success = False
@@ -401,88 +386,37 @@ class DrobotTask(Node):
         return response
 
     def short_goal_callback(self, request, response):
+        next_point = (request.next_x, request.next_y)
 
-        self.get_logger().info(f"Before update: current_point={self.motor_node.current_point}, next_point={self.motor_node.next_point}")
-        
-
-        self.motor_node.current_point = self.motor_node.next_point[:]
-        self.motor_node.next_point[0] = int(request.next_x)
-        self.motor_node.next_point[1] = int(request.next_y)
-        self.motor_node.next_position[0] = self.motor_node.positions[int(request.next_x)][int(request.next_y)][0]
-        self.motor_node.next_position[1] = self.motor_node.positions[int(request.next_x)][int(request.next_y)][1]
-
-        
-        self.get_logger().info(f"After update: current_point={self.motor_node.current_point}, next_point={self.motor_node.next_point}")
-        
-        next_point = (int(request.next_x), int(request.next_y))
-
-
-        if 0 <= self.motor_node.next_point[0] <= 4 and 0 <= self.motor_node.next_point[0] <= 8:
-            self.motor_node.next_position = self.motor_node.positions[self.motor_node.next_point[0]][self.motor_node.next_point[1]]
-            self.get_logger().info(f"next_position : {self.motor_node.next_position[0]}, {self.motor_node.next_position[1]}, status : {self.motor_node.status.value}, active :{self.motor_node.is_active}") 
+        if 0 <= next_point[0] <= 4 and 0 <= next_point[1] <= 8:
+            self.motor_node.next_position = self.motor_node.positions[next_point[0]][next_point[1]]
+            self.get_logger().info(f"next_position : {self.motor_node.next_position.x}, {self.motor_node.next_position.y}, status : {self.motor_node.status.value}, active :{self.motor_node.is_active}")
         else:
             self.get_logger().warn(f"Invalid point!!")
             response.success = False
             return response
 
         self.get_logger().info(f"next point : {next_point}")
-        
-        if self.motor_node.is_active:
-            if self.motor_node.status in [RobotStatus.HOME, RobotStatus.AT_HOME, RobotStatus.AT_STORE, RobotStatus.AT_KIOSK]:
-                if self.motor_node.status == RobotStatus.HOME:
-                    if next_point in self.motor_node.waypoint_points:
-                        self.motor_node.update_status()
-                        self.motor_node.is_moving = 1
-                        response.success =  True
-                    else:
-                        self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                        response.success =  False
-                elif self.motor_node.status == RobotStatus.AT_STORE:
-                    if next_point in self.motor_node.waypoint_points or next_point in self.motor_node.kiosk_points:
-                        self.motor_node.update_status()
-                        self.motor_node.is_moving = 1
-                        response.success =  True
-                    else:
-                        self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                        response.success =  False
-                elif self.motor_node.status == RobotStatus.AT_KIOSK:
-                    if next_point in self.motor_node.waypoint_points or next_point in self.motor_node.robot_points:
-                        self.motor_node.update_status()
-                        self.motor_node.is_moving = 1
-                        response.success =  True
-                    else:
-                        self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                        response.success =  False
-            elif self.motor_node.status in [RobotStatus.TO_STORE]:
-                if next_point in self.motor_node.waypoint_points or next_point in self.motor_node.store_points:
-                    self.motor_node.is_moving = 1
-                    response.success =  True
-                else:
-                    self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                    response.success =  False
-            elif self.motor_node.status == RobotStatus.TO_KIOSK:
-                if next_point in self.motor_node.waypoint_points or next_point in self.motor_node.kiosk_points:
-                    self.motor_node.is_moving = 1
-                    response.success =  True
-                else:
-                    self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                    response.success =  False
+
+        valid_status_points = {
+            RobotStatus.HOME: self.motor_node.waypoint_points,
+            RobotStatus.AT_HOME: self.motor_node.waypoint_points,
+            RobotStatus.AT_STORE: self.motor_node.waypoint_points + self.motor_node.kiosk_points,
+            RobotStatus.AT_KIOSK: self.motor_node.waypoint_points + self.motor_node.robot_points,
+            RobotStatus.TO_STORE: self.motor_node.waypoint_points + self.motor_node.store_points,
+            RobotStatus.TO_KIOSK: self.motor_node.waypoint_points + self.motor_node.kiosk_points,
+            RobotStatus.RETURNING: self.motor_node.waypoint_points + self.motor_node.robot_points,
+        }
+
+        if next_point in valid_status_points.get(self.motor_node.status, []):
+            if self.motor_node.status in {RobotStatus.HOME, RobotStatus.AT_HOME, RobotStatus.AT_STORE, RobotStatus.AT_KIOSK}:
+                self.motor_node.update_status()
+            self.motor_node.update_positions(self.motor_node.next_point, next_point)
+            self.motor_node.is_moving = 1
+            response.success = True
         else:
-            self.motor_node.get_logger().info(f"status : {self.motor_node.status}, next_point : {next_point}, active : {self.motor_node.is_active}")
-            if self.motor_node.status == RobotStatus.RETURNING:
-                if next_point in self.motor_node.waypoint_points or next_point in self.motor_node.robot_points:
-                    self.motor_node.is_moving = 1
-                    response.success =  True
-                else:
-                    self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
-                    response.success =  False
-            else:
-                self.get_logger().warn("There is not order!!")
-                response.success =  False
-
-        # if response.success == True:
-
-        #     self.motor_node.verify_checkpoint()
+            self.get_logger().warn(f"Invalid positions get : {self.motor_node.next_position}")
+            response.success = False
 
         return response
     
@@ -518,7 +452,6 @@ class AmclSub(Node):
     def listener_callback(self, msg):
         position = msg.pose.pose.position
         orientation = msg.pose.pose.orientation
-
         quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
         euler = euler_from_quaternion(quaternion)
         roll, pitch, yaw = euler
@@ -526,8 +459,9 @@ class AmclSub(Node):
         self.motor_node.current_yaw = yaw
         x = position.x
         y = position.y
-        # self.get_logger().info(f"Received pose: position=({position.x}, {position.y}, {position.z}), orientation=(roll={roll}, pitch={pitch}, yaw={yaw})")
-        self.motor_node.current_position = [x, y, yaw]
+        self.motor_node.current_position = Position(x, y)
+
+        self.motor_node.get_logger().info(f"Updated from amcl_pose: current_position value: {self.motor_node.current_position}")
 
 def main(args=None):
     rp.init(args=args)
@@ -558,4 +492,3 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
-
