@@ -298,6 +298,7 @@ class robotTaskManager(RobotControl):
                     else:
                         self.get_logger().info(f"{robotId} path is None")
                         robot.movingFlg = 0
+                        robot.assignedFlg = 0
                         
             else:
                 self.get_logger().info(f"{robotId} : Waiting RFID tag")
@@ -413,7 +414,7 @@ class robotTaskManager(RobotControl):
                     nodeType = 1
 
             if nodeType == 1:   # waypoint 도착
-                self.get_logger().info(f"robot 111 way 도착")
+                self.get_logger().info(f"robot 222 way 도착")
                 response.success = True
 
                 self.robot_2.lastEndPointXY = self.robot_2.midPointXY
