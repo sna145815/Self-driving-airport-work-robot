@@ -1,4 +1,3 @@
-![image](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/44f0f5a2-7d90-4fe4-ba7c-8499bc062026)# ros-repo-3
 파이널 프로젝트 3조 저장소. 공항 배송 로봇
 
 -------------------------------------
