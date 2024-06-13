@@ -33,7 +33,6 @@ setup(
             'db_manager = ct_package.db_manager:main',
             'pathDict = ct_package.pathDict:main',
             'taskManager = ct_package.taskManager:main',
-            'db_manager = ct_package.db_manager:main'
         ],
     },
 )
