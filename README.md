@@ -6,7 +6,7 @@
 * 김영환 - D-Robot Package 설계, GPIO 제어 및 하드웨어 구성, RobotService개발,ROS통신
 * 김진홍 - DB설계 및 구축, 인터페이스 설계, RobotManager개발, ControlTowerPackage 관리, TCP&ROS 통신 / DB연동, ControlTower GUI 개발
 * 유재상 - StoreManager개발, Store GUI 개발, TaskManager개발, 주행 알고리즘 개발
-* 조성호 - Domain Bridge 설계, 로봇 주행 제어, D-RobotControl 개발, ROS통신
+* 조성호 - Domain Bridge 설계, Drobot motor 개발, D-RobotControl 개발, ROS통신
 * 김보선 - KioskManager 개발, Kiosk GUI 개발, RFID 모듈 제어
 
 * -------------------------------------
