@@ -2,8 +2,7 @@
 ------------------------------------
 [![Video Label](https://img.youtube.com/vi/T57jLTyiIHQ/0.jpg)](https://youtu.be/T57jLTyiIHQ)
 
-https://youtu.be/MckX-aLuudc?si=JaWGMjU8tuvYOvw2](https://www.youtube.com/watch?v=MckX-aLuudc)
-
+https://www.youtube.com/watch?v=MckX-aLuudc
 
 -------------------------------------
 ## 프로젝트 개요
