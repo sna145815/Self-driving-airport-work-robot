@@ -3,6 +3,8 @@
 
 [![Watch the video](https://img.youtube.com/vi/MckX-aLuudc/0.jpg)](https://youtu.be/MckX-aLuudc?si=ExCvcIqMss6iiUz-)
 
+https://youtu.be/MckX-aLuudc?si=ExCvcIqMss6iiUz-
+
 -------------------------------------
 ## 프로젝트 개요
 <img width="951" alt="스크린샷 2024-06-17 153630" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/5168b295-0b8c-4e69-ac7b-18890bebddad">
