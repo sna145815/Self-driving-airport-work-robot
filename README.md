@@ -1,39 +1,61 @@
 파이널 프로젝트 3조 저장소. 공항 배송 로봇
+------------------------------------
+[![Video Label](https://img.youtube.com/vi/T57jLTyiIHQ/0.jpg)](https://youtu.be/T57jLTyiIHQ)
+
+https://youtu.be/MckX-aLuudc?si=JaWGMjU8tuvYOvw2](https://www.youtube.com/watch?v=MckX-aLuudc)
+
 
 -------------------------------------
-## 역할
-* 개별 역할
-* 김영환 - D-Robot Package 설계, GPIO 제어 및 하드웨어 구성, RobotService개발,ROS통신
-* 김진홍 - DB설계 및 구축, 인터페이스 설계, RobotManager개발, ControlTowerPackage 관리, TCP&ROS 통신 / DB연동, ControlTower GUI 개발
-* 유재상 - StoreManager개발, Store GUI 개발, TaskManager개발, 주행 알고리즘 개발
-* 조성호 - Domain Bridge 설계, Drobot motor 개발, D-RobotControl 개발, ROS통신
-* 김보선 - KioskManager 개발, Kiosk GUI 개발, RFID 모듈 제어
-
-* -------------------------------------
 ## 프로젝트 개요
-![Screenshot from 2024-06-13 14-18-22](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/14ae6d12-0d7b-4402-a66c-0fb79e32d126)
-![Screenshot from 2024-06-13 14-18-25](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/3f009b58-e9d1-4196-9fb0-e37f5b750bdf)
-![Screenshot from 2024-06-13 14-18-28](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/a3acaf3b-fbec-4fbc-ad22-a54c9e6ad85b)
+<img width="951" alt="스크린샷 2024-06-17 153630" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/5168b295-0b8c-4e69-ac7b-18890bebddad">
+<img width="941" alt="스크린샷 2024-06-17 154825" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/e9dc27d5-ee94-4f08-a01f-9e9fcd1b463a">
 
-----------------------------------
+## 주요기능
+<img width="925" alt="스크린샷 2024-06-17 154924" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/721f25eb-ef5f-480f-a5cd-8e63c0be3870">
+
+## 역할
+<img width="935" alt="스크린샷 2024-06-17 155237" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/243ef893-44b2-417f-a572-ee3d6d7f6966">
+
 ## 개발 환경
 ![Screenshot from 2024-06-13 14-19-37](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/4ef76dc5-535d-4745-9bcb-6f39c32201cd)
-
 -------------------------------------
 ## 하드웨어 구성도
 ![Screenshot from 2024-06-13 14-12-06](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/21c96630-f50a-46bb-a687-89adf2085ff8)
+<img width="923" alt="스크린샷 2024-06-17 155339" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/5fda3cac-6f80-4cf1-860b-b91207e61b2f">
 
 -------------------------------------
 ## 소프트웨어 구성도
 ![Screenshot from 2024-06-13 14-12-10](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/72ca3b54-a6e6-4df7-a44b-2e6043e71838)
-
 -------------------------------------
 ## ERD
-![Screenshot from 2024-06-13 14-20-01](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/85e6126f-2624-4f8d-a054-28c0a66c0083)
+<img width="897" alt="스크린샷 2024-06-17 155426" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/4ea7aeef-5d06-4170-a6a6-3179ea3f196f">
 
----------------------------------------
-# 주요 시나리오
+# 시스템 전체 프로세스
+<img width="930" alt="스크린샷 2024-06-17 155642" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/7dd00eed-ef2f-4388-b13f-f5480607b703">
+<img width="914" alt="스크린샷 2024-06-17 155655" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/9acfcd00-6d40-478c-812b-9e00754635a5">
+
 -------------------------------------
+## 맵 구성 및 주요 기능
+<img width="933" alt="스크린샷 2024-06-17 160434" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/c68e5b8c-d250-44d3-aaed-5ec5e76960dd">
+<img width="895" alt="스크린샷 2024-06-17 160456" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/7ffb2b6e-2722-47db-8212-cd581c839ad1">
+<img width="914" alt="스크린샷 2024-06-17 160514" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/75515682-c27c-4df4-87f4-3ba3e751494e">
+
+
+----------------------------
+## GUI
+
+### Kiosk
+<img width="1185" alt="스크린샷 2024-06-17 160800" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/32f83d6c-475f-4b4b-8e91-e7f87f27a965">
+
+
+### Store
+<img width="935" alt="스크린샷 2024-06-17 160812" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/e0d74557-6441-4cd2-8cfb-2f5e3b08714a">
+
+
+### Control Tower
+<img width="996" alt="스크린샷 2024-06-17 161227" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/72b97f53-daba-4677-a955-0ead8c76090c">
+
+
 ## 주문 시나리오
 ![Screenshot from 2024-06-13 14-14-09](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/7589fd2f-2827-445f-814e-9b36082862b7)
 
@@ -49,9 +71,5 @@
 
 
 -------------------------------------
-## 시연영상(주소)
-[![Watch the video](https://img.youtube.com/vi/MckX-aLuudc/0.jpg)](https://youtu.be/MckX-aLuudc?si=ExCvcIqMss6iiUz-)
 
-
--------------------------------------
 
