@@ -14,7 +14,7 @@ https://youtu.be/MckX-aLuudc?si=ExCvcIqMss6iiUz-
 <img width="925" alt="스크린샷 2024-06-17 154924" src="https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/721f25eb-ef5f-480f-a5cd-8e63c0be3870">
 
 ## 역할
-![스크린샷 2024-08-18 150757](https://github.com/user-attachments/assets/01f48886-3184-478d-8323-543d2c66f7a0)
+![스크린샷 2024-08-18 150936](https://github.com/user-attachments/assets/6c4b7d80-a589-4e23-8a36-53838959deaa)
 ## 개발 환경
 ![Screenshot from 2024-06-13 14-19-37](https://github.com/addinedu-ros-4th/ros-repo-3/assets/98201651/4ef76dc5-535d-4745-9bcb-6f39c32201cd)
 -------------------------------------
